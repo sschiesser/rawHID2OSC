@@ -33,3 +33,9 @@
 
 # Visual Studio directories
 /rawHID2OSC/.vs/*
+
+# Output directories
+/rawHID2OSC/Build/*
+/rawHID2OSC/Release/*
+/rawHID2OSC/Debug/*
+/rawHID2OSC/x64/*

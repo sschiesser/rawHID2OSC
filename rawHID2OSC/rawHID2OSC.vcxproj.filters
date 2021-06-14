@@ -15,8 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="rawHID2OSC.cpp">
+    <ClCompile Include="hid.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="rawHID2OSC.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="hid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
