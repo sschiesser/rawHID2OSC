@@ -7,7 +7,7 @@
 #include "lo/lo.h"
 
 static char get_keystroke(void);
-
+static void parse_packet(uint8_t* p);
 
 int main()
 {
@@ -26,10 +26,11 @@ int main()
 	}
 	printf("found rawhid device\n");
 	printf("To navigate here:\n"
-		"'c' : calibrate strings\n"
-		"'m' : start measurements\n"
-		"'h' : display this help\n"
-		"'x' : exit program\n");
+		"'r' : calibrate string RANGES\n"
+		"'t' : calibrate TOUCH thresholds\n"
+		"'m' : start MEASUREMENTS\n"
+		"'h' : display HELP\n"
+		"'x' : EXIT program\n");
 
 	while (1) {
 		// check if any Raw HID packet has arrived
@@ -41,25 +42,34 @@ int main()
 		}
 		if (num > 0) {
 			printf("\nrecv %d bytes:\n", num);
-			char c = buf[0];
-			switch (c) {
-			case 'c':
-				printf("Received 'c'\n");
-				break;
+			parse_packet(buf);
+			//char c = buf[0];
+			//switch (c) {
+			//case 'c':
+			//	printf("Received 'c'\n");
+			//	break;
 
-			case 'm':
-				printf("Received 'm'\n");
-				break;
+			//case 'm':
+			//	printf("Received 'm'\n");
+			//	break;
 
-			default:
-				printf("Received something else\n");
-				break;
-			}
-			for (i = 0; i < num; i++) {
-				printf("%02X ", buf[i] & 255);
-				if (i % 16 == 15 && i < num - 1) printf("\n");
-			}
-			printf("\n");
+			//case 'h':
+			//	printf("Received 'h'\h");
+			//	break;
+
+			//case 'x':
+			//	printf("Received 'x'\n");
+			//	break;
+
+			//default:
+			//	printf("Received something else\n");
+			//	break;
+			//}
+			//for (i = 0; i < num; i++) {
+			//	printf("%02X ", buf[i] & 255);
+			//	if (i % 16 == 15 && i < num - 1) printf("\n");
+			//}
+			//printf("\n");
 		}
 		// check if any input on stdin
 		while ((c = get_keystroke()) >= 32) {
@@ -73,33 +83,6 @@ int main()
 	}
 }
 
-#if defined(OS_LINUX) || defined(OS_MACOSX)
-// Linux (POSIX) implementation of _kbhit().
-// Morgan McGuire, morgan@cs.brown.edu
-static int _kbhit() {
-	static const int STDIN = 0;
-	static int initialized = 0;
-	int bytesWaiting;
-
-	if (!initialized) {
-		// Use termios to turn off line buffering
-		struct termios term;
-		tcgetattr(STDIN, &term);
-		term.c_lflag &= ~ICANON;
-		tcsetattr(STDIN, TCSANOW, &term);
-		setbuf(stdin, NULL);
-		initialized = 1;
-	}
-	ioctl(STDIN, FIONREAD, &bytesWaiting);
-	return bytesWaiting;
-}
-static char _getch(void) {
-	char c;
-	if (fread(&c, 1, 1, stdin) < 1) return 0;
-	return c;
-}
-#endif
-
 
 static char get_keystroke(void)
 {
@@ -111,3 +94,15 @@ static char get_keystroke(void)
 }
 
 
+static void parse_packet(uint8_t* p)
+{
+	if (*p == 0xcc) 
+	{
+		printf("Command! %c\n", *(p + 1));
+	}
+	else 
+	{
+		uint8_t len = *(p + 1);
+		printf("Measurement! p: 0x%02x, len: %d, p+len: 0x%02x\n", *p, len, *(p + len));
+	}
+}
