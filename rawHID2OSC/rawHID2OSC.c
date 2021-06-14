@@ -18,13 +18,18 @@ int main()
 	r = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
 	if (r <= 0) {
 		// Arduino-based example is 16C0:0486:FFAB:0200
-		r = rawhid_open(1, 0x16C0, 0x0486, 0xFFAB, 0x0200);
+		r = rawhid_open(1, 0x1C57, 0x1234, 0xFFAB, 0x0200);
 		if (r <= 0) {
 			printf("no rawhid device found\n");
 			return -1;
 		}
 	}
 	printf("found rawhid device\n");
+	printf("To navigate here:\n"
+		"'c' : calibrate strings\n"
+		"'m' : start measurements\n"
+		"'h' : display this help\n"
+		"'x' : exit program\n");
 
 	while (1) {
 		// check if any Raw HID packet has arrived
@@ -36,9 +41,23 @@ int main()
 		}
 		if (num > 0) {
 			printf("\nrecv %d bytes:\n", num);
-			for (i=0; i<num; i++) {
+			char c = buf[0];
+			switch (c) {
+			case 'c':
+				printf("Received 'c'\n");
+				break;
+
+			case 'm':
+				printf("Received 'm'\n");
+				break;
+
+			default:
+				printf("Received something else\n");
+				break;
+			}
+			for (i = 0; i < num; i++) {
 				printf("%02X ", buf[i] & 255);
-				if (i % 16 == 15 && i < num-1) printf("\n");
+				if (i % 16 == 15 && i < num - 1) printf("\n");
 			}
 			printf("\n");
 		}
@@ -46,7 +65,7 @@ int main()
 		while ((c = get_keystroke()) >= 32) {
 			printf("\ngot key '%c', sending...\n", c);
 			buf[0] = c;
-			for (i=1; i<64; i++) {
+			for (i = 1; i < 64; i++) {
 				buf[i] = 0;
 			}
 			rawhid_send(0, buf, 64, 100);
