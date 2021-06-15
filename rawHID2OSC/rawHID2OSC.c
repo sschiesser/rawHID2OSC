@@ -2,14 +2,20 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+
+#if defined(OS_LINUX) || defined(OS_MACOSX)
+#include <sys/ioctl.h>
+#include <termios.h>
+#elif defined(OS_WINDOWS)
 #include <conio.h>
+#endif
 
 #include "hid.h"
 #include "lo/lo.h"
 #include "rawHID2OSC.h"
 
 const bool debug = true;
-enum machine_state state = STATE_IDLE;
+enum machine_state current_state = STATE_IDLE;
 
 int main()
 {
@@ -43,7 +49,7 @@ int main()
     }
     if(num > 0)
     {
-      printf("\nrecv %d bytes:\n", num);
+      //printf("\nrecv %d bytes:\n", num);
       parse_packet(buf);
 
       //for (i = 0; i < num; i++) {
@@ -55,7 +61,7 @@ int main()
     // check if any input on stdin
     while((c = get_keystroke()) >= 32)
     {
-      printf("\ngot key '%c', sending...\n", c);
+      //printf("\ngot key '%c', sending...\n", c);
       buf[0] = c;
       for(i = 1; i < 64; i++)
       {
@@ -84,7 +90,7 @@ static void parse_packet(uint8_t* p)
   {
     printf("Command! ");
     command_code c;
-    c = (p + 1);
+    c = (command_code) * (p + 1);
     parse_command(c);
   }
   else if(*p == 0x00)
@@ -101,53 +107,60 @@ static void parse_packet(uint8_t* p)
 static void parse_command(command_code cmd)
 {
   printf("code: %c... ", cmd);
+
   switch(cmd)
   {
     case CMD_STRING_E:
-      printf("E string!\n");
+      printf("E string! state: 0x%02x\n", current_state);
       break;
 
     case CMD_STRING_G:
-      printf("G string!\n");
+      printf("G string! state: 0x%02x\n", current_state);
       break;
 
     case CMD_CALIB_RANGES:
-      printf("RANGES calib!!\n");
-      state = STATE_CALIB_RANGES;
+      current_state = STATE_CALIB_RANGES;
+      printf("RANGES calib!! state: 0x%02x\n", current_state);
       display_help();
       break;
 
     case CMD_CALIB_TOUCH:
-      printf("TOUCH calib!!\n");
-      state = STATE_CALIB_TOUCH;
-      break;
-
-    case CMD_MEASURE:
-      printf("MEASUREMENT!!\n");
-      state = STATE_MEASURING;
-      break;
-
-    case CMD_HELP:
-      printf("HELP!!\n");
+      current_state = STATE_CALIB_TOUCH;
+      printf("TOUCH calib!! state: 0x%02x\n", current_state);
       display_help();
       break;
 
+    case CMD_MEASURE:
+      current_state = STATE_MEASURING;
+      printf("MEASUREMENT!! state: 0x%02x\n", current_state);
+      break;
+
+    case CMD_HELP:
+      printf("HELP!! state: 0x%02x\n", current_state);
+      display_help();
+      break;
+
+    case CMD_VIEW:
+      printf("VIEW!! state: 0x%02x\n", current_state);
+      break; 
+
     case CMD_EXIT:
-      printf("EXIT!!\n");
-      state = STATE_IDLE;
+      printf("EXIT!! state (previous): 0x%02x\n", current_state);
+      current_state = STATE_IDLE;
       break;
 
     case CMD_ERR_NOCMD:
-      printf("ERROR: no valid command!!\n");
+      printf("ERROR: no valid command!! state: 0x%02x\n", current_state);
       break;
 
     case CMD_ERR_TIMEOUT:
-      printf("ERROR: timeout!!\n");
+      printf("ERROR: timeout!! state (previous): 0x%02x\n", current_state);
+      current_state = STATE_IDLE;
       break;
 
     default:
-      printf("something else!!\n");
-      state = STATE_IDLE;
+      printf("something else!! state (previous): 0x%02x\n", current_state);
+      current_state = STATE_IDLE;
       break;
   }
 }
@@ -155,7 +168,7 @@ static void parse_command(command_code cmd)
 
 static void display_help()
 {
-  switch(state)
+  switch(current_state)
   {
     case STATE_MEASURING:
     case STATE_IDLE:
@@ -172,7 +185,7 @@ static void display_help()
              "'e' : calibrate E string\n"
              "'g' : calibrate G string\n"
              "'v' : view current calibration values\n"
-             "'h' : display this help\n"
+             //"'h' : display this help\n"
              "'x' : exit to main menu\n");
       break;
 
@@ -181,7 +194,7 @@ static void display_help()
              "'e' : set touch threshold on E string\n"
              "'g' : set touch threshold on G string\n"
              "'v' : view current threshold values\n"
-             "'h' : display this help\n"
+             //"'h' : display this help\n"
              "'x' : exit to main menu\n");
       break;
 
