@@ -15,7 +15,7 @@
 #include "rawHID2OSC.h"
 
 const bool debug = true;
-enum machine_state current_state = STATE_IDLE;
+machine_state current_state = STATE_IDLE;
 
 int main()
 {
@@ -90,8 +90,10 @@ static void parse_packet(uint8_t* p)
   {
     printf("Command! ");
     command_code c;
+    machine_state s;
     c = (command_code) * (p + 1);
-    parse_command(c);
+    s = (machine_state) * (p + 2);
+    parse_command(c, s);
   }
   else if(*p == 0x00)
   {
@@ -104,9 +106,10 @@ static void parse_packet(uint8_t* p)
   }
 }
 
-static void parse_command(command_code cmd)
+static void parse_command(command_code cmd, machine_state state)
 {
-  printf("code: %c... ", cmd);
+  printf("code: %c... state: 0x%02x\n", cmd, state);
+  current_state = state;
 
   switch(cmd)
   {
@@ -119,19 +122,16 @@ static void parse_command(command_code cmd)
       break;
 
     case CMD_CALIB_RANGES:
-      current_state = STATE_CALIB_RANGES;
       printf("RANGES calib!! state: 0x%02x\n", current_state);
       display_help();
       break;
 
     case CMD_CALIB_TOUCH:
-      current_state = STATE_CALIB_TOUCH;
       printf("TOUCH calib!! state: 0x%02x\n", current_state);
       display_help();
       break;
 
     case CMD_MEASURE:
-      current_state = STATE_MEASURING;
       printf("MEASUREMENT!! state: 0x%02x\n", current_state);
       break;
 
@@ -142,11 +142,10 @@ static void parse_command(command_code cmd)
 
     case CMD_VIEW:
       printf("VIEW!! state: 0x%02x\n", current_state);
-      break; 
+      break;
 
     case CMD_EXIT:
-      printf("EXIT!! state (previous): 0x%02x\n", current_state);
-      current_state = STATE_IDLE;
+      printf("EXIT!! state: 0x%02x\n", current_state);
       break;
 
     case CMD_ERR_NOCMD:
@@ -154,13 +153,11 @@ static void parse_command(command_code cmd)
       break;
 
     case CMD_ERR_TIMEOUT:
-      printf("ERROR: timeout!! state (previous): 0x%02x\n", current_state);
-      current_state = STATE_IDLE;
+      printf("ERROR: timeout!! state: 0x%02x\n", current_state);
       break;
 
     default:
-      printf("something else!! state (previous): 0x%02x\n", current_state);
-      current_state = STATE_IDLE;
+      printf("something else!! state: 0x%02x\n", current_state);
       break;
   }
 }

@@ -1,14 +1,14 @@
 #ifndef _RAWHID2OSC_H
 #define _RAWHID2OSC_H
 
-enum machine_state
+typedef enum machine_state_t
 {
   STATE_IDLE = 0x00,
   STATE_CALIB_RANGES = 0x10,
-  STATE_CALIB_TOUCH,
+  STATE_CALIB_TOUCH = 0x11,
   STATE_MEASURING = 0x20,
   STATE_ERROR = 0xF0
-};
+} machine_state;
 
 typedef enum command_code_t
 {
@@ -28,7 +28,7 @@ typedef enum command_code_t
 
 static char get_keystroke(void);
 static void parse_packet(uint8_t* p);
-static void parse_command(command_code cmd);
+static void parse_command(command_code cmd, machine_state state);
 static void display_help(void);
 
 #endif /* _RAWHID2OSC_H */
