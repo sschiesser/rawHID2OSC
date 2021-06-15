@@ -83,7 +83,7 @@ static void parse_packet(uint8_t* p)
   if(*p == 0xcc)
   {
     printf("Command! ");
-    uint8_t* c;
+    command_code c;
     c = (p + 1);
     parse_command(c);
   }
@@ -98,44 +98,51 @@ static void parse_packet(uint8_t* p)
   }
 }
 
-static void parse_command(uint8_t* c)
+static void parse_command(command_code cmd)
 {
-  char cmd = (char)*c;
   printf("code: %c... ", cmd);
   switch(cmd)
   {
-    case 'e':
+    case CMD_STRING_E:
       printf("E string!\n");
       break;
 
-    case 'g':
+    case CMD_STRING_G:
       printf("G string!\n");
       break;
 
-    case 'r':
+    case CMD_CALIB_RANGES:
       printf("RANGES calib!!\n");
       state = STATE_CALIB_RANGES;
       display_help();
       break;
 
-    case 't':
+    case CMD_CALIB_TOUCH:
       printf("TOUCH calib!!\n");
       state = STATE_CALIB_TOUCH;
       break;
 
-    case 'm':
+    case CMD_MEASURE:
       printf("MEASUREMENT!!\n");
       state = STATE_MEASURING;
       break;
 
-    case 'h':
+    case CMD_HELP:
       printf("HELP!!\n");
       display_help();
       break;
 
-    case 'x':
+    case CMD_EXIT:
       printf("EXIT!!\n");
       state = STATE_IDLE;
+      break;
+
+    case CMD_ERR_NOCMD:
+      printf("ERROR: no valid command!!\n");
+      break;
+
+    case CMD_ERR_TIMEOUT:
+      printf("ERROR: timeout!!\n");
       break;
 
     default:
