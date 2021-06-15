@@ -23,6 +23,7 @@
     <ClCompile Include="rawHID2OSC.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="rawHID2OSC.h" />
     <ClInclude Include="hid.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

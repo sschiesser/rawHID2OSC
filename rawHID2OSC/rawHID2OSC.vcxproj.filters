@@ -26,5 +26,8 @@
     <ClInclude Include="hid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="rawHID2OSC.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
