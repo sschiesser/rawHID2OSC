@@ -1,6 +1,14 @@
 #ifndef _RAWHID2OSC_H
 #define _RAWHID2OSC_H
 
+typedef enum hid_messages_t
+{
+  MESS_COMMAND = 0xC0,
+  MESS_CALIB_RANGES = 0xD0,
+  MESS_CALIB_TOUCH = 0xD1,
+  MESS_MEASURE = 0xE0
+} hid_messages;
+
 typedef enum machine_state_t
 {
   STATE_IDLE = 0x00,

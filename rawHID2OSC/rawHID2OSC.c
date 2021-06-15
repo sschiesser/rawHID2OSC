@@ -86,7 +86,7 @@ static char get_keystroke(void)
 
 static void parse_packet(uint8_t* p)
 {
-  if(*p == 0xcc)
+  if(*p == (hid_messages)MESS_COMMAND)
   {
     printf("Command! ");
     command_code c;
@@ -95,7 +95,15 @@ static void parse_packet(uint8_t* p)
     s = (machine_state) * (p + 2);
     parse_command(c, s);
   }
-  else if(*p == 0x00)
+  else if(*p == (hid_messages)MESS_CALIB_RANGES)
+  {
+  }
+  else if(*p == (hid_messages)MESS_CALIB_TOUCH)
+  {
+    printf("%c", *(p + 1));
+    current_state = (machine_state) * (p + 2);
+  }
+  else if(*p == (hid_messages)MESS_MEASURE)
   {
     uint8_t len = *(p + 1);
     printf("Measurement! p: 0x%02x, len: %d, p+len: 0x%02x\n", *p, len, *(p + len));
@@ -146,6 +154,7 @@ static void parse_command(command_code cmd, machine_state state)
 
     case CMD_EXIT:
       printf("EXIT!! state: 0x%02x\n", current_state);
+      display_help();
       break;
 
     case CMD_ERR_NOCMD:
