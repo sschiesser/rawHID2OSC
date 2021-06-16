@@ -103,6 +103,15 @@ static void parse_packet(uint8_t* p)
     printf("%c", *(p + 1));
     current_state = (machine_state) * (p + 2);
   }
+  else if(*p == (hid_messages)MESS_CALIB_TOUCH_DONE)
+  {
+    uint16_t min, max, avg;
+    min = (*(p + 1) << 8) | *(p + 2);
+    max = (*(p + 3) << 8) | *(p + 4);
+    avg = (*(p + 5) << 8) | *(p + 6);
+    printf("\np+1: %02x, p+2: %02x, p+3: %02x, p+4: %02x, p+5: %02x, p+6: %02x\n", *(p + 1), *(p + 2), *(p + 3), *(p + 4), *(p + 5), *(p + 6));
+    printf("\nmin: %02x, max: %02x, avg: %02x\n", min, max, avg);
+  }
   else if(*p == (hid_messages)MESS_MEASURE)
   {
     uint8_t len = *(p + 1);
@@ -154,6 +163,7 @@ static void parse_command(command_code cmd, machine_state state)
 
     case CMD_EXIT:
       printf("EXIT!! state: 0x%02x\n", current_state);
+
       display_help();
       break;
 

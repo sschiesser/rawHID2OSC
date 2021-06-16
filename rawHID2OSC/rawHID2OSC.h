@@ -5,8 +5,10 @@ typedef enum hid_messages_t
 {
   MESS_COMMAND = 0xC0,
   MESS_CALIB_RANGES = 0xD0,
-  MESS_CALIB_TOUCH = 0xD1,
-  MESS_MEASURE = 0xE0
+  MESS_CALIB_RANGES_DONE,
+  MESS_CALIB_TOUCH = 0xE0,
+  MESS_CALIB_TOUCH_DONE,
+  MESS_MEASURE = 0xF0
 } hid_messages;
 
 typedef enum machine_state_t
