@@ -32,6 +32,7 @@ typedef enum hid_requests_t
   REQ_STRING_D = 'd',
   REQ_STRING_E = 'e',
   REQ_STRING_G = 'g',
+  REQ_STRING_NONE = 0xe0,
   REQ_HELP = 'h',
   REQ_MEASURE = 'm',
   REQ_CALIB_RANGES = 'r',

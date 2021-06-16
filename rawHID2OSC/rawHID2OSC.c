@@ -20,7 +20,7 @@ machine_state current_state = STATE_IDLE;
 int main()
 {
   int i, r, num;
-  char c;
+  char c1, c2;
   uint8_t notif[64], req[64];
 
   // C-based example is 16C0:0480:FFAB:0200
@@ -61,7 +61,7 @@ int main()
       //printf("\n");
     }
     // check if any input on stdin
-    while((c = get_keystroke()) >= 32)
+    while((c1 = get_keystroke()) >= 32)
     {
       for(i = 1; i < 64; i++)
       {
@@ -69,8 +69,8 @@ int main()
       }
       //printf("\ngot key '%c', sending...\n", c);
       req[0] = REQ_COMMAND;
-      req[2] = (uint8_t)c;
-      switch(c)
+      req[2] = (uint8_t)c1;
+      switch(c1)
       {
         case REQ_HELP:
           break;
@@ -89,8 +89,34 @@ int main()
           break;
 
         case REQ_CALIB_TOUCH:
+          printf("Calib TOUCH requested, please choose a string: ");
           req[1] = 3;
-          req[3] = REQ_STRING_E;
+          while((c2 = get_keystroke()) == 0)
+            ;
+
+          switch(c2)
+          {
+            case 'e':
+              printf("got a 'e'\n");
+              req[3] = REQ_STRING_E;
+              break;
+
+            case 'g':
+              printf("got a 'g'\n");
+              req[3] = REQ_STRING_G;
+              break;
+
+            case 'x':
+              printf("got a 'x'... exiting\n");
+              req[3] = REQ_STRING_NONE;
+              break;
+
+            default:
+              printf("got something else\n");
+              req[3] = REQ_STRING_NONE;
+              break;
+          }
+
           req[req[1] + 1] = REQ_END;
           printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
           break;
