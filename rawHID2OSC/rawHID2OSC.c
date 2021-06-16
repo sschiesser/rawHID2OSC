@@ -20,7 +20,8 @@ machine_state current_state = STATE_IDLE;
 int main()
 {
   int i, r, num;
-  char c, buf[64];
+  char c;
+  uint8_t notif[64], req[64];
 
   // C-based example is 16C0:0480:FFAB:0200
   r = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
@@ -40,7 +41,7 @@ int main()
   while(1)
   {
     // check if any Raw HID packet has arrived
-    num = rawhid_recv(0, buf, 64, 220);
+    num = rawhid_recv(0, notif, 64, 220);
     if(num < 0)
     {
       printf("\nerror reading, device went offline\n");
@@ -50,24 +51,60 @@ int main()
     if(num > 0)
     {
       //printf("\nrecv %d bytes:\n", num);
-      parse_packet(buf);
+      parse_notification(notif);
 
-      //for (i = 0; i < num; i++) {
-      //	printf("%02X ", buf[i] & 255);
-      //	if (i % 16 == 15 && i < num - 1) printf("\n");
+      //for(i = 0; i < num; i++)
+      //{
+      //  printf("%02X ", notif[i] & 255);
+      //  if(i % 16 == 15 && i < num - 1) printf("\n");
       //}
       //printf("\n");
     }
     // check if any input on stdin
     while((c = get_keystroke()) >= 32)
     {
-      //printf("\ngot key '%c', sending...\n", c);
-      buf[0] = c;
       for(i = 1; i < 64; i++)
       {
-        buf[i] = 0;
+        req[i] = 0;
       }
-      rawhid_send(0, buf, 64, 100);
+      //printf("\ngot key '%c', sending...\n", c);
+      req[0] = REQ_COMMAND;
+      req[2] = (uint8_t)c;
+      switch(c)
+      {
+        case REQ_HELP:
+          break;
+
+        case REQ_MEASURE:
+          req[1] = 2;
+          req[req[1] + 1] = REQ_END;
+          printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+          break;
+
+        case REQ_CALIB_RANGES:
+          req[1] = 3;
+          req[3] = REQ_STRING_G;
+          req[req[1] + 1] = REQ_END;
+          printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+          break;
+
+        case REQ_CALIB_TOUCH:
+          req[1] = 3;
+          req[3] = REQ_STRING_E;
+          req[req[1] + 1] = REQ_END;
+          printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+          break;
+
+        case REQ_VIEW:
+          break;
+
+        case REQ_EXIT:
+          break;
+
+        default:
+          break;
+      }
+      rawhid_send(0, req, 64, 100);
     }
   }
 }
@@ -84,139 +121,157 @@ static char get_keystroke(void)
 }
 
 
-static void parse_packet(uint8_t* p)
+static void parse_notification(uint8_t* p)
 {
-  if(*p == (hid_messages)MESS_COMMAND)
+  uint8_t len = *(p + 1);
+  printf("Received (len = %d): ", len);
+  for(uint8_t i = 0; i < (len + 2); i++)
   {
-    printf("Command! ");
-    command_code c;
-    machine_state s;
-    c = (command_code) * (p + 1);
-    s = (machine_state) * (p + 2);
-    parse_command(c, s);
+    printf("0x%02x ", *(p + i));
   }
-  else if(*p == (hid_messages)MESS_CALIB_RANGES)
-  {
-  }
-  else if(*p == (hid_messages)MESS_CALIB_TOUCH)
-  {
-    printf("%c", *(p + 1));
-    current_state = (machine_state) * (p + 2);
-  }
-  else if(*p == (hid_messages)MESS_CALIB_TOUCH_DONE)
-  {
-    uint16_t min, max, avg;
-    min = (*(p + 1) << 8) | *(p + 2);
-    max = (*(p + 3) << 8) | *(p + 4);
-    avg = (*(p + 5) << 8) | *(p + 6);
-    uint8_t ret = *(p + 7);
-    printf("\nmin: %d, max: %d, avg: %d, ret: %d\n", min, max, avg, ret);
-    display_help();
-  }
-  else if(*p == (hid_messages)MESS_MEASURE)
-  {
-    uint8_t len = *(p + 1);
-    printf("Measurement! p: 0x%02x, len: %d, p+len: 0x%02x\n", *p, len, *(p + len));
-  }
-  else
-  {
-    printf("Not recognized packet format!\n");
-  }
+  printf("\n");
+  //if(*p == (hid_notifications)MESS_COMMAND)
+  //{
+  //  printf("Command! ");
+  //  hid_requests c;
+  //  machine_state s;
+  //  c = (hid_requests) * (p + 1);
+  //  s = (machine_state) * (p + 2);
+  //  parse_command(c, s);
+  //}
+  //else if(*p == (hid_notifications)MESS_CALIB_RANGES)
+  //{
+  //}
+  //else if(*p == (hid_notifications)MESS_CALIB_TOUCH)
+  //{
+  //  printf("%c", *(p + 1));
+  //  current_state = (machine_state) * (p + 2);
+  //}
+  //else if(*p == (hid_notifications)MESS_CALIB_TOUCH_DONE)
+  //{
+  //  uint16_t min, max, avg;
+  //  min = (*(p + 1) << 8) | *(p + 2);
+  //  max = (*(p + 3) << 8) | *(p + 4);
+  //  avg = (*(p + 5) << 8) | *(p + 6);
+  //  uint8_t ret = *(p + 7);
+  //  printf("\nmin: %d, max: %d, avg: %d, ret: %d\n", min, max, avg, ret);
+  //  display_help();
+  //}
+  //else if(*p == (hid_notifications)MESS_MEASURE)
+  //{
+  //  uint8_t len = *(p + 1);
+  //  printf("Measurement! p: 0x%02x, len: %d, p+len: 0x%02x\n", *p, len, *(p + len));
+  //}
+  //else
+  //{
+  //  printf("Not recognized packet format!\n");
+  //}
 }
 
-static void parse_command(command_code cmd, machine_state state)
+static void parse_command(hid_requests cmd, machine_state state)
 {
   printf("code: %c... state: 0x%02x\n", cmd, state);
   current_state = state;
 
-  switch(cmd)
-  {
-    case CMD_STRING_E:
-      printf("E string! state: 0x%02x\n", current_state);
-      break;
+  //switch(cmd)
+  //{
+  //  case CMD_STRING_E:
+  //    printf("E string! state: 0x%02x\n", current_state);
+  //    break;
 
-    case CMD_STRING_G:
-      printf("G string! state: 0x%02x\n", current_state);
-      break;
+  //  case CMD_STRING_G:
+  //    printf("G string! state: 0x%02x\n", current_state);
+  //    break;
 
-    case CMD_CALIB_RANGES:
-      printf("RANGES calib!! state: 0x%02x\n", current_state);
-      display_help();
-      break;
+  //  case CMD_CALIB_RANGES:
+  //    printf("RANGES calib!! state: 0x%02x\n", current_state);
+  //    display_help();
+  //    break;
 
-    case CMD_CALIB_TOUCH:
-      printf("TOUCH calib!! state: 0x%02x\n", current_state);
-      display_help();
-      break;
+  //  case CMD_CALIB_TOUCH:
+  //    printf("TOUCH calib!! state: 0x%02x\n", current_state);
+  //    display_help();
+  //    break;
 
-    case CMD_MEASURE:
-      printf("MEASUREMENT!! state: 0x%02x\n", current_state);
-      break;
+  //  case CMD_MEASURE:
+  //    printf("MEASUREMENT!! state: 0x%02x\n", current_state);
+  //    break;
 
-    case CMD_HELP:
-      printf("HELP!! state: 0x%02x\n", current_state);
-      display_help();
-      break;
+  //  case CMD_HELP:
+  //    printf("HELP!! state: 0x%02x\n", current_state);
+  //    display_help();
+  //    break;
 
-    case CMD_VIEW:
-      printf("VIEW!! state: 0x%02x\n", current_state);
-      break;
+  //  case CMD_VIEW:
+  //    printf("VIEW!! state: 0x%02x\n", current_state);
+  //    uint16_t vals[6];
+  //    for(uint8_t i = 0; i < 6; i++)
+  //    {
 
-    case CMD_EXIT:
-      printf("EXIT!! state: 0x%02x\n", current_state);
+  //    }
+  //    display_calib_vals();
+  //    break;
 
-      display_help();
-      break;
+  //  case CMD_EXIT:
+  //    printf("EXIT!! state: 0x%02x\n", current_state);
 
-    case CMD_ERR_NOCMD:
-      printf("ERROR: no valid command!! state: 0x%02x\n", current_state);
-      break;
+  //    display_help();
+  //    break;
 
-    case CMD_ERR_TIMEOUT:
-      printf("ERROR: timeout!! state: 0x%02x\n", current_state);
-      break;
+  //  case CMD_ERR_NOCMD:
+  //    printf("ERROR: no valid command!! state: 0x%02x\n", current_state);
+  //    break;
 
-    default:
-      printf("something else!! state: 0x%02x\n", current_state);
-      break;
-  }
+  //  case CMD_ERR_TIMEOUT:
+  //    printf("ERROR: timeout!! state: 0x%02x\n", current_state);
+  //    break;
+
+  //  default:
+  //    printf("something else!! state: 0x%02x\n", current_state);
+  //    break;
+  //}
 }
 
 
 static void display_help()
 {
-  switch(current_state)
-  {
-    case STATE_MEASURING:
-    case STATE_IDLE:
-      printf("To navigate here:\n"
-             "'r' : calibrate string RANGES\n"
-             "'t' : calibrate TOUCH thresholds\n"
-             "'m' : start MEASUREMENTS\n"
-             "'h' : display HELP\n"
-             "'x' : EXIT program\n");
-      break;
+  //switch(current_state)
+  //{
+  //  case STATE_MEASURING:
+  //  case STATE_IDLE:
+  //    printf("To navigate here:\n"
+  //           "'r' : calibrate string RANGES\n"
+  //           "'t' : calibrate TOUCH thresholds\n"
+  //           "'m' : start MEASUREMENTS\n"
+  //           "'h' : display HELP\n"
+  //           "'x' : EXIT program\n");
+  //    break;
 
-    case STATE_CALIB_RANGES:
-      printf("Ranges calibration:\n"
-             "'e' : calibrate E string\n"
-             "'g' : calibrate G string\n"
-             "'v' : view current calibration values\n"
-             //"'h' : display this help\n"
-             "'x' : exit to main menu\n");
-      break;
+  //  case STATE_CALIB_RANGES:
+  //    printf("Ranges calibration:\n"
+  //           "'e' : calibrate E string\n"
+  //           "'g' : calibrate G string\n"
+  //           "'v' : view current calibration values\n"
+  //           //"'h' : display this help\n"
+  //           "'x' : exit to main menu\n");
+  //    break;
 
-    case STATE_CALIB_TOUCH:
-      printf("Touch calibration:\n"
-             "'e' : set touch threshold on E string\n"
-             "'g' : set touch threshold on G string\n"
-             "'v' : view current threshold values\n"
-             //"'h' : display this help\n"
-             "'x' : exit to main menu\n");
-      break;
+  //  case STATE_CALIB_TOUCH:
+  //    printf("Touch calibration:\n"
+  //           "'e' : set touch threshold on E string\n"
+  //           "'g' : set touch threshold on G string\n"
+  //           "'v' : view current threshold values\n"
+  //           //"'h' : display this help\n"
+  //           "'x' : exit to main menu\n");
+  //    break;
 
-    case STATE_ERROR:
-    default:
-      break;
-  }
+  //  case STATE_ERROR:
+  //  default:
+  //    break;
+  //}
+}
+
+static void display_calib_vals(void)
+{
+
 }
