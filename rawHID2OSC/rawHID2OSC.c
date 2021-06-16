@@ -99,6 +99,9 @@ int main()
           break;
 
         case REQ_EXIT:
+          req[1] = 2;
+          req[req[1] + 1] = REQ_END;
+          printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
           break;
 
         default:
