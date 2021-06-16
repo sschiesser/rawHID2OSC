@@ -110,8 +110,8 @@ static void parse_packet(uint8_t* p)
     max = (*(p + 3) << 8) | *(p + 4);
     avg = (*(p + 5) << 8) | *(p + 6);
     uint8_t ret = *(p + 7);
-    printf("\np+1: %02x, p+2: %02x, p+3: %02x, p+4: %02x, p+5: %02x, p+6: %02x\n", *(p + 1), *(p + 2), *(p + 3), *(p + 4), *(p + 5), *(p + 6));
-    printf("\nmin: %02x, max: %02x, avg: %02x, ret: %d\n", min, max, avg, ret);
+    printf("\nmin: %d, max: %d, avg: %d, ret: %d\n", min, max, avg, ret);
+    display_help();
   }
   else if(*p == (hid_messages)MESS_MEASURE)
   {
