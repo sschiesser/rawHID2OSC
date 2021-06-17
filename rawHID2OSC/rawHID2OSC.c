@@ -76,12 +76,15 @@ int main()
           break;
 
         case REQ_MEASURE:
+        {
           req[1] = 2;
-          req[req[1] + 1] = REQ_END;
+          req[3] = REQ_END;
           printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
           break;
+        }
 
         case REQ_CALIB_RANGES:
+        {
           printf("Calib RANGES requested, please choose a string: ");
           req[1] = 3;
           while((c2 = get_keystroke()) == 0)
@@ -112,8 +115,10 @@ int main()
           req[4] = REQ_END;
           printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
           break;
+        }
 
         case REQ_CALIB_TOUCH:
+        {
           printf("Calib TOUCH requested, please choose a string: ");
           req[1] = 3;
           while((c2 = get_keystroke()) == 0)
@@ -145,15 +150,20 @@ int main()
           req[4] = REQ_END;
           printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
           break;
+        }
 
         case REQ_VIEW:
+        {
           break;
+        }
 
         case REQ_EXIT:
+        {
           req[1] = 2;
           req[req[1] + 1] = REQ_END;
           printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
           break;
+        }
 
         default:
           break;
