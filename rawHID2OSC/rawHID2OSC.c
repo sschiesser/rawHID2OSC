@@ -82,9 +82,34 @@ int main()
           break;
 
         case REQ_CALIB_RANGES:
+          printf("Calib RANGES requested, please choose a string: ");
           req[1] = 3;
-          req[3] = REQ_STRING_G;
-          req[req[1] + 1] = REQ_END;
+          while((c2 = get_keystroke()) == 0)
+            ;
+
+          switch(c2)
+          {
+            case 'e':
+              printf("got a 'e'\n");
+              req[3] = REQ_STRING_E;
+              break;
+
+            case 'g':
+              printf("got a 'g'\n");
+              req[3] = REQ_STRING_G;
+              break;
+
+            case 'x':
+              printf("got a 'x'... exiting\n");
+              req[3] = REQ_STRING_NONE;
+              break;
+
+            default:
+              printf("got something else\n");
+              req[3] = REQ_STRING_NONE;
+              break;
+          }
+          req[4] = REQ_END;
           printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
           break;
 
@@ -117,7 +142,7 @@ int main()
               break;
           }
 
-          req[req[1] + 1] = REQ_END;
+          req[4] = REQ_END;
           printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
           break;
 
@@ -139,15 +164,6 @@ int main()
 }
 
 
-static char get_keystroke(void)
-{
-  if(_kbhit())
-  {
-    char c = _getch();
-    if(c >= 32) return c;
-  }
-  return 0;
-}
 
 
 static void parse_notification(uint8_t* p)
@@ -303,4 +319,15 @@ static void display_help()
 static void display_calib_vals(void)
 {
 
+}
+
+
+static char get_keystroke(void)
+{
+  if(_kbhit())
+  {
+    char c = _getch();
+    if(c >= 32) return c;
+  }
+  return 0;
 }
