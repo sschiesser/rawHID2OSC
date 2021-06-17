@@ -15,15 +15,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="hid.c">
+    <ClCompile Include="rawHID2OSC.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="rawHID2OSC.c">
+    <ClCompile Include="hid_WINDOWS.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rawHID2OSC.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
