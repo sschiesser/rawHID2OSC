@@ -17,162 +17,189 @@
 const bool debug = true;
 machine_state current_state = STATE_IDLE;
 
+bool device_open = false;
+
 int main()
 {
   int i, r, num;
   char c1, c2;
   uint8_t notif[64], req[64];
 
-  // C-based example is 16C0:0480:FFAB:0200
-  r = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
-  if(r <= 0)
-  {
-    // Arduino-based example is 16C0:0486:FFAB:0200
-    r = rawhid_open(1, 0x1C57, 0x1234, 0xFFAB, 0x0200);
-    if(r <= 0)
-    {
-      printf("no rawhid device found\n");
-      return -1;
-    }
-  }
-  printf("found rawhid device\n");
+  printf("rawHID2OSC utility for the HAPTEEV e-violin experiment\n"
+         "------------------------------------------------------\n"
+         "Press 'o' to open the rawHID device, 'c' to close it\n");
+
   display_help();
 
   while(1)
   {
-    // check if any Raw HID packet has arrived
-    num = rawhid_recv(0, notif, 64, 220);
-    if(num < 0)
+    if(device_open)
     {
-      printf("\nerror reading, device went offline\n");
-      rawhid_close(0);
-      return 0;
-    }
-    if(num > 0)
-    {
-      //printf("\nrecv %d bytes:\n", num);
-      parse_notification(notif);
+      // check if any Raw HID packet has arrived
+      num = rawhid_recv(0, notif, 64, 220);
+      if(num < 0)
+      {
+        printf("\nerror reading, device went offline\n");
+        rawhid_close(0);
+        device_open = false;
+        printf("Press 'o' to open the rawHID device, 'c' to close it\n");
+      }
+      if(num > 0)
+      {
+        //printf("\nrecv %d bytes:\n", num);
+        parse_notification(notif);
 
-      //for(i = 0; i < num; i++)
-      //{
-      //  printf("%02X ", notif[i] & 255);
-      //  if(i % 16 == 15 && i < num - 1) printf("\n");
-      //}
-      //printf("\n");
+        //for(i = 0; i < num; i++)
+        //{
+        //  printf("%02X ", notif[i] & 255);
+        //  if(i % 16 == 15 && i < num - 1) printf("\n");
+        //}
+        //printf("\n");
+      }
     }
     // check if any input on stdin
     while((c1 = get_keystroke()) >= 32)
     {
-      for(i = 1; i < 64; i++)
+      if(c1 == 'o')
       {
-        req[i] = 0;
-      }
-      //printf("\ngot key '%c', sending...\n", c);
-      req[0] = REQ_COMMAND;
-      req[2] = (uint8_t)c1;
-      switch(c1)
-      {
-        case REQ_HELP:
-          break;
-
-        case REQ_MEASURE:
+        // C-based example is 16C0:0480:FFAB:0200
+        r = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
+        if(r <= 0)
         {
-          req[1] = 2;
-          req[3] = REQ_END;
-          printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
-          break;
-        }
-
-        case REQ_CALIB_RANGES:
-        {
-          printf("Calib RANGES requested, please choose a string: ");
-          req[1] = 3;
-          while((c2 = get_keystroke()) == 0)
-            ;
-
-          switch(c2)
+          // Arduino-based example is 16C0:0486:FFAB:0200
+          r = rawhid_open(1, 0x1C57, 0x1234, 0xFFAB, 0x0200);
+          if(r <= 0)
           {
-            case 'e':
-              printf("got a 'e'\n");
-              req[3] = REQ_STRING_E;
-              break;
-
-            case 'g':
-              printf("got a 'g'\n");
-              req[3] = REQ_STRING_G;
-              break;
-
-            case 'x':
-              printf("got a 'x'... exiting\n");
-              req[3] = REQ_STRING_NONE;
-              break;
-
-            default:
-              printf("got something else\n");
-              req[3] = REQ_STRING_NONE;
-              break;
+            printf("no rawhid device found\n");
           }
-          req[4] = REQ_END;
-          printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-          break;
         }
+        printf("found rawhid device\n");
+        device_open = true;
+      }
+      else if(c1 == 'c')
+      {
+        rawhid_close(0);
+        printf("rawHID device closed, press 'o' to open again\n");
+        device_open = false;
+      }
+      else if(device_open)
+      {
+        for(i = 1; i < 64; i++) req[i] = 0;
 
-        case REQ_CALIB_TOUCH:
+        req[0] = REQ_COMMAND;
+        req[2] = (uint8_t)c1;
+        switch(c1)
         {
-          printf("Calib TOUCH requested, please choose a string: ");
-          req[1] = 3;
-          while((c2 = get_keystroke()) == 0)
-            ;
+          case REQ_HELP:
+            break;
 
-          switch(c2)
+          case REQ_MEASURE:
           {
-            case 'e':
-              printf("got a 'e'\n");
-              req[3] = REQ_STRING_E;
-              break;
-
-            case 'g':
-              printf("got a 'g'\n");
-              req[3] = REQ_STRING_G;
-              break;
-
-            case 'x':
-              printf("got a 'x'... exiting\n");
-              req[3] = REQ_STRING_NONE;
-              break;
-
-            default:
-              printf("got something else\n");
-              req[3] = REQ_STRING_NONE;
-              break;
+            req[1] = 2;
+            req[3] = REQ_END;
+            printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+            break;
           }
 
-          req[4] = REQ_END;
-          printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-          break;
-        }
+          case REQ_CALIB_RANGES:
+          {
+            printf("Calib RANGES requested, please choose a string: ");
+            req[1] = 3;
+            while((c2 = get_keystroke()) == 0)
+              ;
 
-        case REQ_VIEW:
+            switch(c2)
+            {
+              case 'e':
+                printf("got a 'e'\n");
+                req[3] = REQ_STRING_E;
+                break;
+
+              case 'g':
+                printf("got a 'g'\n");
+                req[3] = REQ_STRING_G;
+                break;
+
+              case 'x':
+                printf("got a 'x'... exiting\n");
+                req[3] = REQ_STRING_NONE;
+                break;
+
+              default:
+                printf("got something else\n");
+                req[3] = REQ_STRING_NONE;
+                break;
+            }
+            req[4] = REQ_END;
+            printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+            break;
+          }
+
+          case REQ_CALIB_TOUCH:
+          {
+            printf("Calib TOUCH requested, please choose a string: ");
+            req[1] = 3;
+            while((c2 = get_keystroke()) == 0)
+              ;
+
+            switch(c2)
+            {
+              case 'e':
+                printf("got a 'e'\n");
+                req[3] = REQ_STRING_E;
+                break;
+
+              case 'g':
+                printf("got a 'g'\n");
+                req[3] = REQ_STRING_G;
+                break;
+
+              case 'x':
+                printf("got a 'x'... exiting\n");
+                req[3] = REQ_STRING_NONE;
+                break;
+
+              default:
+                printf("got something else\n");
+                req[3] = REQ_STRING_NONE;
+                break;
+            }
+
+            req[4] = REQ_END;
+            printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+            break;
+          }
+
+          case REQ_VIEW:
+          {
+            break;
+          }
+
+          case REQ_EXIT:
+          {
+            req[1] = 2;
+            req[req[1] + 1] = REQ_END;
+            printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+            break;
+          }
+
+          default:
+            break;
+        }
+        if(rawhid_send(0, req, 64, 100) < 0)
         {
-          break;
+          printf("Error on sending packet, closing HID device\n");
+          rawhid_close(0);
+          device_open = false;
         }
-
-        case REQ_EXIT:
-        {
-          req[1] = 2;
-          req[req[1] + 1] = REQ_END;
-          printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
-          break;
-        }
-
-        default:
-          break;
       }
-      rawhid_send(0, req, 64, 100);
+      else
+      {
+        printf("No device connected! Press 'o' to open\n");
+      }
     }
   }
 }
-
 
 
 
