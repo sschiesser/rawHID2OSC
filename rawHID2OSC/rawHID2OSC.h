@@ -57,11 +57,11 @@ typedef enum machine_state_t
   STATE_ERROR = 0xE0
 } machine_state;
 
-
-static char get_keystroke(void);
+uint32_t get_ms(void);
 static void parse_notification(uint8_t* p);
-static void parse_command(hid_requests cmd, machine_state state);
+static void parse_keystroke(char c);
 static void display_help(void);
 static void display_calib_vals(void);
+static char get_keystroke(void);
 
 #endif /* _RAWHID2OSC_H */

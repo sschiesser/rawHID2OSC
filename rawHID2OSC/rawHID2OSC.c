@@ -2,11 +2,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <time.h>
 
 #if defined(OS_LINUX) || defined(OS_MACOSX)
 #include <sys/ioctl.h>
 #include <termios.h>
 #elif defined(OS_WINDOWS)
+//#include <profileapi.h>
 #include <conio.h>
 #endif
 
@@ -16,202 +18,227 @@
 
 const bool debug = true;
 machine_state current_state = STATE_IDLE;
-
 bool device_open = false;
+char sender_host[] = "127.0.0.1";
+char sender_port[] = "19001";
+lo_address addr;
+uint32_t cur_time, prev_time;
 
 int main()
 {
-  int i, r, num;
-  char c1, c2;
-  uint8_t notif[64], req[64];
+  int dev, num_bytes;
+  char c;
+  uint8_t notif[64];
 
   printf("rawHID2OSC utility for the HAPTEEV e-violin experiment\n"
          "------------------------------------------------------\n"
          "Press 'o' to open the rawHID device, 'c' to close it\n");
-
-  display_help();
 
   while(1)
   {
     if(device_open)
     {
       // check if any Raw HID packet has arrived
-      num = rawhid_recv(0, notif, 64, 220);
-      if(num < 0)
+      num_bytes = rawhid_recv(0, notif, 64, 220);
+      if(num_bytes < 0)
       {
         printf("\nerror reading, device went offline\n");
         rawhid_close(0);
         device_open = false;
         printf("Press 'o' to open the rawHID device, 'c' to close it\n");
       }
-      if(num > 0)
-      {
-        //printf("\nrecv %d bytes:\n", num);
-        parse_notification(notif);
 
-        //for(i = 0; i < num; i++)
-        //{
-        //  printf("%02X ", notif[i] & 255);
-        //  if(i % 16 == 15 && i < num - 1) printf("\n");
-        //}
-        //printf("\n");
+      if(num_bytes > 0)
+      {
+        parse_notification(notif);
+      }
+
+      while((c = get_keystroke()) >= 32)
+      {
+        parse_keystroke(c);
       }
     }
-    // check if any input on stdin
-    while((c1 = get_keystroke()) >= 32)
+    else
     {
-      if(c1 == 'o')
+      while((c = get_keystroke()) >= 32)
       {
-        // C-based example is 16C0:0480:FFAB:0200
-        r = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
-        if(r <= 0)
+        if(c == 'o')
         {
-          // Arduino-based example is 16C0:0486:FFAB:0200
-          r = rawhid_open(1, 0x1C57, 0x1234, 0xFFAB, 0x0200);
-          if(r <= 0)
+          // C-based example is 16C0:0480:FFAB:0200
+          dev = rawhid_open(1, 0x16C0, 0x0480, 0xFFAB, 0x0200);
+          if(dev <= 0)
           {
-            printf("no rawhid device found\n");
-          }
-        }
-        printf("found rawhid device\n");
-        device_open = true;
-      }
-      else if(c1 == 'c')
-      {
-        rawhid_close(0);
-        printf("rawHID device closed, press 'o' to open again\n");
-        device_open = false;
-      }
-      else if(device_open)
-      {
-        for(i = 1; i < 64; i++) req[i] = 0;
-
-        req[0] = REQ_COMMAND;
-        req[2] = (uint8_t)c1;
-        switch(c1)
-        {
-          case REQ_HELP:
-            break;
-
-          case REQ_MEASURE:
-          {
-            req[1] = 2;
-            req[3] = REQ_END;
-            printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
-            break;
-          }
-
-          case REQ_CALIB_RANGES:
-          {
-            printf("Calib RANGES requested, please choose a string: ");
-            req[1] = 3;
-            while((c2 = get_keystroke()) == 0)
-              ;
-
-            switch(c2)
+            // Arduino-based example is 16C0:0486:FFAB:0200
+            dev = rawhid_open(1, 0x1C57, 0x1234, 0xFFAB, 0x0200);
+            if(dev <= 0)
             {
-              case 'e':
-                printf("got a 'e'\n");
-                req[3] = REQ_STRING_E;
-                break;
-
-              case 'g':
-                printf("got a 'g'\n");
-                req[3] = REQ_STRING_G;
-                break;
-
-              case 'x':
-                printf("got a 'x'... exiting\n");
-                req[3] = REQ_STRING_NONE;
-                break;
-
-              default:
-                printf("got something else\n");
-                req[3] = REQ_STRING_NONE;
-                break;
+              printf("no rawhid device found\n");
             }
-            req[4] = REQ_END;
-            printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-            break;
           }
-
-          case REQ_CALIB_TOUCH:
-          {
-            printf("Calib TOUCH requested, please choose a string: ");
-            req[1] = 3;
-            while((c2 = get_keystroke()) == 0)
-              ;
-
-            switch(c2)
-            {
-              case 'e':
-                printf("got a 'e'\n");
-                req[3] = REQ_STRING_E;
-                break;
-
-              case 'g':
-                printf("got a 'g'\n");
-                req[3] = REQ_STRING_G;
-                break;
-
-              case 'x':
-                printf("got a 'x'... exiting\n");
-                req[3] = REQ_STRING_NONE;
-                break;
-
-              default:
-                printf("got something else\n");
-                req[3] = REQ_STRING_NONE;
-                break;
-            }
-
-            req[4] = REQ_END;
-            printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-            break;
-          }
-
-          case REQ_VIEW:
-          {
-            break;
-          }
-
-          case REQ_EXIT:
-          {
-            req[1] = 2;
-            req[req[1] + 1] = REQ_END;
-            printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
-            break;
-          }
-
-          default:
-            break;
+          printf("found rawhid device\n");
+          device_open = true;
+          addr = lo_address_new(sender_host, sender_port);
+          printf("Sending OSC to host %s on port %s\n", sender_host, sender_port);
+          display_help();
         }
-        if(rawhid_send(0, req, 64, 100) < 0)
+        else
         {
-          printf("Error on sending packet, closing HID device\n");
-          rawhid_close(0);
-          device_open = false;
+          printf("No device connected! Press 'o' to open\n");
         }
-      }
-      else
-      {
-        printf("No device connected! Press 'o' to open\n");
       }
     }
   }
 }
 
+static void parse_keystroke(char c1)
+{
+  uint8_t req[64] = {0};
+  char c2;
 
+  if(c1 == 'c')
+  {
+    rawhid_close(0);
+    printf("rawHID device closed, press 'o' to open again\n");
+    device_open = false;
+  }
+  else
+  {
+    req[0] = REQ_COMMAND;
+    req[2] = (uint8_t)c1;
+    switch(c1)
+    {
+      case REQ_HELP:
+      {
+        display_help();
+        break;
+      }
+
+      case REQ_MEASURE:
+      {
+        req[1] = 2;
+        req[3] = REQ_END;
+        printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+        break;
+      }
+
+      case REQ_CALIB_RANGES:
+      {
+        printf("Calib RANGES requested, please choose a string: ");
+        req[1] = 3;
+        while((c2 = get_keystroke()) == 0)
+          ;
+
+        switch(c2)
+        {
+          case 'e':
+            printf("got a 'e'\n");
+            req[3] = REQ_STRING_E;
+            break;
+
+          case 'g':
+            printf("got a 'g'\n");
+            req[3] = REQ_STRING_G;
+            break;
+
+          case 'x':
+            printf("got a 'x'... exiting\n");
+            req[3] = REQ_STRING_NONE;
+            break;
+
+          default:
+            printf("got something else\n");
+            req[3] = REQ_STRING_NONE;
+            break;
+        }
+        req[4] = REQ_END;
+        printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+        break;
+      }
+
+      case REQ_CALIB_TOUCH:
+      {
+        printf("Calib TOUCH requested, please choose a string: ");
+        req[1] = 3;
+        while((c2 = get_keystroke()) == 0)
+          ;
+
+        switch(c2)
+        {
+          case 'e':
+            printf("got a 'e'\n");
+            req[3] = REQ_STRING_E;
+            break;
+
+          case 'g':
+            printf("got a 'g'\n");
+            req[3] = REQ_STRING_G;
+            break;
+
+          case 'x':
+            printf("got a 'x'... exiting\n");
+            req[3] = REQ_STRING_NONE;
+            break;
+
+          default:
+            printf("got something else\n");
+            req[3] = REQ_STRING_NONE;
+            break;
+        }
+
+        req[4] = REQ_END;
+        printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+        break;
+      }
+
+      case REQ_VIEW:
+      {
+        display_calib_vals();
+        break;
+      }
+
+      case REQ_EXIT:
+      {
+        req[1] = 2;
+        req[req[1] + 1] = REQ_END;
+        printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+        break;
+      }
+
+      default:
+        break;
+    }
+    if(rawhid_send(0, req, 64, 100) < 0)
+    {
+      printf("Error on sending packet, closing HID device\n");
+      rawhid_close(0);
+      device_open = false;
+    }
+  }
+}
 
 static void parse_notification(uint8_t* p)
 {
   uint8_t len = *(p + 1);
-  printf("Received (len = %d): ", len);
-  for(uint8_t i = 0; i < (len + 2); i++)
+  current_state = *(p + len);
+  //printf("Received (len = %d, state = 0x%02x): ", len, current_state);
+  //for(uint8_t i = 0; i < (len + 2); i++)
+  //{
+  //  printf("0x%02x ", *(p + i));
+  //}
+  //printf("\n");
+  if(*p == NOTIF_MEASUREMENT)
   {
-    printf("0x%02x ", *(p + i));
+    cur_time = get_ms();
+    uint32_t delta_host = cur_time - prev_time;
+    prev_time = cur_time;
+    double delta_teensy = (double)((uint32_t)((p[2] << 8) | (p[3])) / 1.0);
+    uint16_t gVal = (uint16_t)((uint16_t)(p[4] << 8) | (p[5]));
+    uint16_t eVal = (uint16_t)((uint16_t)(p[6] << 8) | (p[7]));
+    //printf("forwarding to %s on %s: %f\n", sender_host, sender_port, delta_ms);
+    lo_send(addr, "/violin/systime", "fi", delta_teensy, delta_host);
+    lo_send(addr, "/violin/pos/g", "i", gVal);
+    lo_send(addr, "/violin/pos/e", "i", eVal);
   }
-  printf("\n");
   //if(*p == (hid_notifications)MESS_COMMAND)
   //{
   //  printf("Command! ");
@@ -250,114 +277,42 @@ static void parse_notification(uint8_t* p)
   //}
 }
 
-static void parse_command(hid_requests cmd, machine_state state)
-{
-  printf("code: %c... state: 0x%02x\n", cmd, state);
-  current_state = state;
-
-  //switch(cmd)
-  //{
-  //  case CMD_STRING_E:
-  //    printf("E string! state: 0x%02x\n", current_state);
-  //    break;
-
-  //  case CMD_STRING_G:
-  //    printf("G string! state: 0x%02x\n", current_state);
-  //    break;
-
-  //  case CMD_CALIB_RANGES:
-  //    printf("RANGES calib!! state: 0x%02x\n", current_state);
-  //    display_help();
-  //    break;
-
-  //  case CMD_CALIB_TOUCH:
-  //    printf("TOUCH calib!! state: 0x%02x\n", current_state);
-  //    display_help();
-  //    break;
-
-  //  case CMD_MEASURE:
-  //    printf("MEASUREMENT!! state: 0x%02x\n", current_state);
-  //    break;
-
-  //  case CMD_HELP:
-  //    printf("HELP!! state: 0x%02x\n", current_state);
-  //    display_help();
-  //    break;
-
-  //  case CMD_VIEW:
-  //    printf("VIEW!! state: 0x%02x\n", current_state);
-  //    uint16_t vals[6];
-  //    for(uint8_t i = 0; i < 6; i++)
-  //    {
-
-  //    }
-  //    display_calib_vals();
-  //    break;
-
-  //  case CMD_EXIT:
-  //    printf("EXIT!! state: 0x%02x\n", current_state);
-
-  //    display_help();
-  //    break;
-
-  //  case CMD_ERR_NOCMD:
-  //    printf("ERROR: no valid command!! state: 0x%02x\n", current_state);
-  //    break;
-
-  //  case CMD_ERR_TIMEOUT:
-  //    printf("ERROR: timeout!! state: 0x%02x\n", current_state);
-  //    break;
-
-  //  default:
-  //    printf("something else!! state: 0x%02x\n", current_state);
-  //    break;
-  //}
-}
-
-
 static void display_help()
 {
-  //switch(current_state)
-  //{
-  //  case STATE_MEASURING:
-  //  case STATE_IDLE:
-  //    printf("To navigate here:\n"
-  //           "'r' : calibrate string RANGES\n"
-  //           "'t' : calibrate TOUCH thresholds\n"
-  //           "'m' : start MEASUREMENTS\n"
-  //           "'h' : display HELP\n"
-  //           "'x' : EXIT program\n");
-  //    break;
+  switch(current_state)
+  {
+    case STATE_IDLE:
+    {
+      printf("To navigate here:\n"
+             "'r' : calibrate string RANGES\n"
+             "'t' : calibrate TOUCH thresholds\n"
+             "'m' : start MEASUREMENTS\n"
+             "'h' : display HELP\n"
+             "'x' : EXIT program\n");
+      break;
+    }
 
-  //  case STATE_CALIB_RANGES:
-  //    printf("Ranges calibration:\n"
-  //           "'e' : calibrate E string\n"
-  //           "'g' : calibrate G string\n"
-  //           "'v' : view current calibration values\n"
-  //           //"'h' : display this help\n"
-  //           "'x' : exit to main menu\n");
-  //    break;
-
-  //  case STATE_CALIB_TOUCH:
-  //    printf("Touch calibration:\n"
-  //           "'e' : set touch threshold on E string\n"
-  //           "'g' : set touch threshold on G string\n"
-  //           "'v' : view current threshold values\n"
-  //           //"'h' : display this help\n"
-  //           "'x' : exit to main menu\n");
-  //    break;
-
-  //  case STATE_ERROR:
-  //  default:
-  //    break;
-  //}
+    default:
+      break;
+  }
 }
 
 static void display_calib_vals(void)
 {
-
+  printf("Some calib values should be displayed here...\n");
 }
 
+uint32_t get_ms(void)
+{
+  LARGE_INTEGER now;
+  LARGE_INTEGER frequency;
+
+  QueryPerformanceFrequency(&frequency);
+  QueryPerformanceCounter(&now);
+
+  now.QuadPart *= 1000;
+  return (now.QuadPart / frequency.QuadPart);
+}
 
 static char get_keystroke(void)
 {
