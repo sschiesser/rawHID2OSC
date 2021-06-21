@@ -125,8 +125,9 @@ struct osc_s
 
 struct hid_s
 {
-  int dev_id;
+  int8_t dev_id;
   uint16_t vid, pid, page, usage;
+  bool open;
 };
 
 struct violin_s
@@ -139,7 +140,7 @@ struct violin_s
 
 uint32_t get_ms(void);
 static void parse_notification(uint8_t* p);
-static void parse_keystroke(char c);
+static void parse_keystroke(char c, bool dev_open);
 static void display_help(void);
 static void display_calib_vals(void);
 static char get_keystroke(void);
@@ -153,5 +154,5 @@ int measure_handler(const char* path, const char* types, lo_arg** argv,
 int command_handler(const char* path, const char* types, lo_arg** argv,
                     int argc, void* data, void* user_data);
 void init(void);
-
+void startup(void);
 #endif /* _RAWHID2OSC_H */
