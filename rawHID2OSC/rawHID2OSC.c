@@ -226,15 +226,15 @@ static void parse_keystroke(char c1, bool dev_open)
 
 static void parse_notification(uint8_t* p)
 {
-  uint8_t len = *(p + 1);
-  violin.cur_state = *(p + len);
+  uint8_t len = p[1];
+  violin.cur_state = p[len];
   printf("Received (len = %d, state = 0x%02x): ", len, violin.cur_state);
   for(uint8_t i = 0; i < (len + 2); i++)
   {
-    printf("0x%02x ", *(p + i));
+    printf("0x%02x ", p[i]);
   }
   printf("\n");
-  if(*p == NOTIF_MEASUREMENT)
+  if(p[0] == NOTIF_MEASUREMENT)
   {
     cur_time = get_ms();
     uint32_t delta_host = cur_time - prev_time;
@@ -246,6 +246,59 @@ static void parse_notification(uint8_t* p)
     lo_send(addr, violin.osc.sender.systime_addr, "fi", delta_teensy, delta_host);
     lo_send(addr, "/violin/pos/g", "i", gVal);
     lo_send(addr, "/violin/pos/e", "i", eVal);
+  }
+  if(p[0] == NOTIF_CALIB_TOUCH_DONE)
+  {
+    char str = (p[2] == NOTIF_STRING_E) ? 'E' : 'G';
+    uint16_t min = (p[3] << 8) | p[4];
+    uint16_t max = (p[5] << 8) | p[6];
+    uint16_t avg = (p[7] << 8) | p[8];
+    uint8_t cal = p[9];
+    printf("Touch calib done on string %c, results (min/max/avg): %d/%d/%d, quality: %d\n",
+           str, min, max, avg, cal);
+
+    if(cal)
+    {
+      if(str == NOTIF_STRING_E)
+      {
+        violin.cal_state.e_str.cal_touch.min = min;
+        violin.cal_state.e_str.cal_touch.max = max;
+        violin.cal_state.e_str.cal_touch.avg = avg;
+        violin.cal_state.e_str.cal_touch.status = cal;
+      }
+      if(str == NOTIF_STRING_G)
+      {
+        violin.cal_state.g_str.cal_touch.min = min;
+        violin.cal_state.g_str.cal_touch.max = max;
+        violin.cal_state.g_str.cal_touch.avg = avg;
+        violin.cal_state.g_str.cal_touch.status = cal;
+      }
+    }
+  }
+
+  if(p[0] == NOTIF_CALIB_RANGES_DONE)
+  {
+    char str = (p[2] == NOTIF_STRING_E) ? 'E' : 'G';
+    uint16_t min = (p[3] << 8) | p[4];
+    uint16_t max = (p[5] << 8) | p[6];
+    uint8_t cal = p[7];
+    printf("Range calib done on string %c, results (min/max): %d/%d, quality: %d\n", str, min, max, cal);
+
+    if(cal)
+    {
+      if(str == NOTIF_STRING_E)
+      {
+        violin.cal_state.e_str.cal_range.min = min;
+        violin.cal_state.e_str.cal_range.max = max;
+        violin.cal_state.e_str.cal_range.status = cal;
+      }
+      if(str == NOTIF_STRING_G)
+      {
+        violin.cal_state.g_str.cal_range.min = min;
+        violin.cal_state.g_str.cal_range.max = max;
+        violin.cal_state.g_str.cal_range.status = cal;
+      }
+    }
   }
 }
 
@@ -447,9 +500,9 @@ int measure_handler(const char* path, const char* types, lo_arg** argv,
 int command_handler(const char* path, const char* types, lo_arg** argv,
                     int argc, void* data, void* user_data)
 {
-  if(strcmp(argv[0], "hid") == 0)
+  if(strcmp((const char*)argv[0], "hid") == 0)
   {
-    if((strcmp(argv[1], "open") == 0) && !violin.device.open)
+    if((strcmp((const char*)argv[1], "open") == 0) && !violin.device.open)
     {
       printf("Opening HID device!\n");
       int8_t dev_nb = rawhid_open(1, violin.device.vid, violin.device.pid,
@@ -466,7 +519,7 @@ int command_handler(const char* path, const char* types, lo_arg** argv,
         printf("No or too many rawhid devices found\n");
       }
     }
-    else if((strcmp(argv[1], "close") == 0) && violin.device.open)
+    else if((strcmp((const char*)argv[1], "close") == 0) && violin.device.open)
     {
       printf("Closing HID device!\n");
       violin.device.open = false;
@@ -478,9 +531,9 @@ int command_handler(const char* path, const char* types, lo_arg** argv,
     }
   }
 
-  if(strcmp(argv[0], "app") == 0)
+  if(strcmp((const char*)argv[0], "app") == 0)
   {
-    if(strcmp(argv[1], "close") == 0)
+    if(strcmp((const char*)argv[1], "close") == 0)
     {
       printf("Stopping app\n");
       app_running = false;
