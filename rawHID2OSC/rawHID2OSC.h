@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <time.h>
+#include <string.h>
+
+//#include <time.h>
 
 #if defined(OS_LINUX) || defined(OS_MACOSX)
 #include <sys/ioctl.h>
@@ -82,7 +84,11 @@ static void display_help(void);
 static void display_calib_vals(void);
 static char get_keystroke(void);
 void lo_error(int num, const char* msg, const char* path);
-int generic_handler(const char* path, const char* types, lo_arg** argv,
+int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
+                        int argc, void* data, void* user_data);
+int calib_range_handler(const char* path, const char* types, lo_arg** argv,
+                        int argc, void* data, void* user_data);
+int command_handler(const char* path, const char* types, lo_arg** argv,
                     int argc, void* data, void* user_data);
 
 

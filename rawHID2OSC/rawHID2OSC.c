@@ -23,7 +23,9 @@ int main()
   printf("Sending OSC to host %s on port %s\n", sender_host, sender_port);
 
   st = lo_server_thread_new("19002", lo_error);
-  lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
+  lo_server_thread_add_method(st, "/violin/calib/touch", "s", calib_touch_handler, NULL);
+  lo_server_thread_add_method(st, "/violin/calib/range", "s", calib_range_handler, NULL);
+  lo_server_thread_add_method(st, NULL, NULL, command_handler, NULL);
   printf("OSC server thread & method added on port 19002\n");
 
   while(1)
@@ -89,8 +91,8 @@ int main()
 #elif defined(OS_WINDOWS)
     Sleep(1);
 #endif
-      }
-    }
+  }
+}
 
 static void parse_keystroke(char c1)
 {
@@ -231,12 +233,12 @@ static void parse_notification(uint8_t* p)
 {
   uint8_t len = *(p + 1);
   current_state = *(p + len);
-  //printf("Received (len = %d, state = 0x%02x): ", len, current_state);
-  //for(uint8_t i = 0; i < (len + 2); i++)
-  //{
-  //  printf("0x%02x ", *(p + i));
-  //}
-  //printf("\n");
+  printf("Received (len = %d, state = 0x%02x): ", len, current_state);
+  for(uint8_t i = 0; i < (len + 2); i++)
+  {
+    printf("0x%02x ", *(p + i));
+  }
+  printf("\n");
   if(*p == NOTIF_MEASUREMENT)
   {
     cur_time = get_ms();
@@ -305,12 +307,62 @@ void lo_error(int num, const char* msg, const char* path)
   fflush(stdout);
 }
 
-int generic_handler(const char* path, const char* types, lo_arg** argv,
-                    int argc, void* data, void* user_data)
+int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
+                        int argc, void* data, void* user_data)
+{
+  static bool calibrating = false;
+  uint8_t req[64];
+
+  printf("TOUCH handler!\n");
+  printf("%s <- c:%c\n", path, argv[0]->c);
+
+  char cal_string = argv[0]->c;
+  if(calibrating)
+  {
+    if(cal_string == REQ_EXIT)
+    {
+      req[0] = REQ_COMMAND;
+      req[1] = 2;
+      req[2] = REQ_EXIT;
+      req[3] = REQ_END;
+      calibrating = false;
+    }
+    else
+      printf("Comand not valid!\n");
+  }
+  else
+  {
+    req[0] = REQ_COMMAND;
+    req[1] = 3;
+    req[2] = REQ_CALIB_TOUCH;
+    req[4] = REQ_END;
+    if((cal_string == REQ_STRING_E) || (cal_string == REQ_STRING_G))
+      req[3] = cal_string;
+    else
+      req[3] = REQ_STRING_NONE;
+    calibrating = true;
+  }
+
+  printf("Sending 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+
+  if(rawhid_send(0, req, 64, 100) < 0)
+  {
+    printf("Error on sending packet, closing HID device\n");
+    rawhid_close(0);
+    device_open = false;
+  }
+
+  fflush(stdout);
+
+  return 1;
+}
+
+int calib_range_handler(const char* path, const char* types, lo_arg** argv,
+                        int argc, void* data, void* user_data)
 {
   int i;
 
-  printf("path: <%s>\n", path);
+  printf("RANGE handler! path: <%s>\n", path);
   for(i = 0; i < argc; i++)
   {
     printf("arg %d '%c' ", i, types[i]);
@@ -318,6 +370,24 @@ int generic_handler(const char* path, const char* types, lo_arg** argv,
     printf("\n");
   }
   printf("\n");
+  fflush(stdout);
+
+  return 1;
+}
+
+int command_handler(const char* path, const char* types, lo_arg** argv,
+                    int argc, void* data, void* user_data)
+{
+  //int i;
+
+  //printf("GENERIC handler! path: <%s>\n", path);
+  //for(i = 0; i < argc; i++)
+  //{
+  //  printf("arg %d '%c' ", i, types[i]);
+  //  lo_arg_pp((lo_type)types[i], argv[i]);
+  //  printf("\n");
+  //}
+  //printf("\n");
   fflush(stdout);
 
   return 1;
