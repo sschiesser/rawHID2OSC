@@ -25,7 +25,7 @@ int main()
   st = lo_server_thread_new("19002", lo_error);
   lo_server_thread_add_method(st, "/violin/calib/touch", "s", calib_touch_handler, NULL);
   lo_server_thread_add_method(st, "/violin/calib/range", "s", calib_range_handler, NULL);
-  lo_server_thread_add_method(st, NULL, NULL, command_handler, NULL);
+  lo_server_thread_add_method(st, "/violin/measure", "i", measure_handler, NULL);
   printf("OSC server thread & method added on port 19002\n");
 
   while(1)
@@ -134,7 +134,7 @@ static void parse_keystroke(char c1)
         break;
       }
 
-      case REQ_CALIB_RANGES:
+      case REQ_CALIB_RANGE:
       {
         printf("Calib RANGES requested, please choose a string: ");
         req[1] = 3;
@@ -360,25 +360,77 @@ int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
 int calib_range_handler(const char* path, const char* types, lo_arg** argv,
                         int argc, void* data, void* user_data)
 {
-  int i;
+  uint8_t req[64];
 
-  printf("RANGE handler! path: <%s>\n", path);
-  for(i = 0; i < argc; i++)
+  printf("RANGE handler!\n");
+  printf("%s <- c:%c\n", path, argv[0]->c);
+
+  char cal_string = argv[0]->c;
+  req[0] = REQ_COMMAND;
+  req[1] = 3;
+  req[2] = REQ_CALIB_RANGE;
+  req[4] = REQ_END;
+  if((cal_string == REQ_STRING_E) || (cal_string == REQ_STRING_G))
+    req[3] = cal_string;
+  else
+    req[3] = REQ_STRING_NONE;
+
+  printf("Sending 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+
+  if(rawhid_send(0, req, 64, 100) < 0)
   {
-    printf("arg %d '%c' ", i, types[i]);
-    lo_arg_pp((lo_type)types[i], argv[i]);
-    printf("\n");
+    printf("Error on sending packet, closing HID device\n");
+    rawhid_close(0);
+    device_open = false;
   }
-  printf("\n");
+
   fflush(stdout);
 
   return 1;
 }
 
-int command_handler(const char* path, const char* types, lo_arg** argv,
+int measure_handler(const char* path, const char* types, lo_arg** argv,
                     int argc, void* data, void* user_data)
 {
-  //int i;
+  static bool measuring = false;
+  uint8_t req[64];
+  bool rts = true;
+
+  printf("MEASURE handler!\n");
+  printf("%s <- i:%d\n", path, argv[0]->i);
+  bool meas_cmd = (bool)argv[0]->i;
+
+  req[0] = REQ_COMMAND;
+  req[1] = 2;
+  req[3] = REQ_END;
+  if(!measuring && meas_cmd)
+  {
+    printf("Starting measurement!\n");
+    req[2] = REQ_MEASURE;
+    measuring = true;
+  }
+  else if(measuring && !meas_cmd)
+  {
+    printf("Stopping measurement!\n");
+    req[2] = REQ_EXIT;
+    measuring = false;
+  }
+  else
+  {
+    printf("Wrong command!\n");
+    rts = false;
+  }
+
+  if(rts)
+  {
+    if(rawhid_send(0, req, 64, 100) < 0)
+    {
+      printf("Error on sending packet, closing HID device\n");
+      rawhid_close(0);
+      device_open = false;
+    }
+  }
+
 
   //printf("GENERIC handler! path: <%s>\n", path);
   //for(i = 0; i < argc; i++)

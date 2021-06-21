@@ -56,7 +56,7 @@ typedef enum hid_requests_t
   REQ_STRING_NONE = 0xe0,
   REQ_HELP = 'h',
   REQ_MEASURE = 'm',
-  REQ_CALIB_RANGES = 'r',
+  REQ_CALIB_RANGE = 'r',
   REQ_CALIB_TOUCH = 't',
   REQ_VIEW = 'v',
   REQ_EXIT = 'x',
@@ -88,7 +88,7 @@ int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
                         int argc, void* data, void* user_data);
 int calib_range_handler(const char* path, const char* types, lo_arg** argv,
                         int argc, void* data, void* user_data);
-int command_handler(const char* path, const char* types, lo_arg** argv,
+int measure_handler(const char* path, const char* types, lo_arg** argv,
                     int argc, void* data, void* user_data);
 
 
