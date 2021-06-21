@@ -1,19 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <time.h>
-
-#if defined(OS_LINUX) || defined(OS_MACOSX)
-#include <sys/ioctl.h>
-#include <termios.h>
-#elif defined(OS_WINDOWS)
-//#include <profileapi.h>
-#include <conio.h>
-#endif
-
-#include "hid.h"
-#include "lo/lo.h"
 #include "rawHID2OSC.h"
 
 const bool debug = true;
@@ -23,6 +7,7 @@ char sender_host[] = "127.0.0.1";
 char sender_port[] = "19001";
 lo_address addr;
 uint32_t cur_time, prev_time;
+lo_server_thread st;
 
 int main()
 {
@@ -33,6 +18,13 @@ int main()
   printf("rawHID2OSC utility for the HAPTEEV e-violin experiment\n"
          "------------------------------------------------------\n"
          "Press 'o' to open the rawHID device, 'c' to close it\n");
+
+  addr = lo_address_new(sender_host, sender_port);
+  printf("Sending OSC to host %s on port %s\n", sender_host, sender_port);
+
+  st = lo_server_thread_new("19002", lo_error);
+  lo_server_thread_add_method(st, NULL, NULL, generic_handler, NULL);
+  printf("OSC server thread & method added on port 19002\n");
 
   while(1)
   {
@@ -46,6 +38,9 @@ int main()
         rawhid_close(0);
         device_open = false;
         printf("Press 'o' to open the rawHID device, 'c' to close it\n");
+
+        lo_server_thread_stop(st);
+        printf("OSC server thread stopped\n");
       }
 
       if(num_bytes > 0)
@@ -77,8 +72,10 @@ int main()
           }
           printf("found rawhid device\n");
           device_open = true;
-          addr = lo_address_new(sender_host, sender_port);
-          printf("Sending OSC to host %s on port %s\n", sender_host, sender_port);
+
+          lo_server_thread_start(st);
+          printf("OSC server thread started\n");
+
           display_help();
         }
         else
@@ -87,8 +84,13 @@ int main()
         }
       }
     }
-  }
-}
+#if defined(OS_LINUX) || defined(OS_MACOSX)
+    usleep(1000);
+#elif defined(OS_WINDOWS)
+    Sleep(1);
+#endif
+      }
+    }
 
 static void parse_keystroke(char c1)
 {
@@ -97,9 +99,18 @@ static void parse_keystroke(char c1)
 
   if(c1 == 'c')
   {
+    req[0] = REQ_COMMAND;
+    req[1] = 2;
+    req[2] = REQ_EXIT;
+    req[3] = REQ_END;
+    rawhid_send(0, req, 64, 100);
+
     rawhid_close(0);
-    printf("rawHID device closed, press 'o' to open again\n");
     device_open = false;
+    printf("rawHID device closed, press 'o' to open again\n");
+
+    lo_server_thread_stop(st);
+    printf("OSC server thread stopped\n");
   }
   else
   {
@@ -199,7 +210,7 @@ static void parse_keystroke(char c1)
       case REQ_EXIT:
       {
         req[1] = 2;
-        req[req[1] + 1] = REQ_END;
+        req[3] = REQ_END;
         printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
         break;
       }
@@ -239,42 +250,6 @@ static void parse_notification(uint8_t* p)
     lo_send(addr, "/violin/pos/g", "i", gVal);
     lo_send(addr, "/violin/pos/e", "i", eVal);
   }
-  //if(*p == (hid_notifications)MESS_COMMAND)
-  //{
-  //  printf("Command! ");
-  //  hid_requests c;
-  //  machine_state s;
-  //  c = (hid_requests) * (p + 1);
-  //  s = (machine_state) * (p + 2);
-  //  parse_command(c, s);
-  //}
-  //else if(*p == (hid_notifications)MESS_CALIB_RANGES)
-  //{
-  //}
-  //else if(*p == (hid_notifications)MESS_CALIB_TOUCH)
-  //{
-  //  printf("%c", *(p + 1));
-  //  current_state = (machine_state) * (p + 2);
-  //}
-  //else if(*p == (hid_notifications)MESS_CALIB_TOUCH_DONE)
-  //{
-  //  uint16_t min, max, avg;
-  //  min = (*(p + 1) << 8) | *(p + 2);
-  //  max = (*(p + 3) << 8) | *(p + 4);
-  //  avg = (*(p + 5) << 8) | *(p + 6);
-  //  uint8_t ret = *(p + 7);
-  //  printf("\nmin: %d, max: %d, avg: %d, ret: %d\n", min, max, avg, ret);
-  //  display_help();
-  //}
-  //else if(*p == (hid_notifications)MESS_MEASURE)
-  //{
-  //  uint8_t len = *(p + 1);
-  //  printf("Measurement! p: 0x%02x, len: %d, p+len: 0x%02x\n", *p, len, *(p + len));
-  //}
-  //else
-  //{
-  //  printf("Not recognized packet format!\n");
-  //}
 }
 
 static void display_help()
@@ -322,4 +297,28 @@ static char get_keystroke(void)
     if(c >= 32) return c;
   }
   return 0;
+}
+
+void lo_error(int num, const char* msg, const char* path)
+{
+  printf("liblo server error %d in path %s: %s\n", num, path, msg);
+  fflush(stdout);
+}
+
+int generic_handler(const char* path, const char* types, lo_arg** argv,
+                    int argc, void* data, void* user_data)
+{
+  int i;
+
+  printf("path: <%s>\n", path);
+  for(i = 0; i < argc; i++)
+  {
+    printf("arg %d '%c' ", i, types[i]);
+    lo_arg_pp((lo_type)types[i], argv[i]);
+    printf("\n");
+  }
+  printf("\n");
+  fflush(stdout);
+
+  return 1;
 }

@@ -1,6 +1,24 @@
 #ifndef _RAWHID2OSC_H
 #define _RAWHID2OSC_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <time.h>
+
+#if defined(OS_LINUX) || defined(OS_MACOSX)
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <unistd.h>
+#elif defined(OS_WINDOWS)
+#include <conio.h>
+#endif
+
+#include "hid.h"
+#include "lo/lo.h"
+
+
 typedef enum hid_notifications_t
 {
   // notification type headers
@@ -63,5 +81,9 @@ static void parse_keystroke(char c);
 static void display_help(void);
 static void display_calib_vals(void);
 static char get_keystroke(void);
+void lo_error(int num, const char* msg, const char* path);
+int generic_handler(const char* path, const char* types, lo_arg** argv,
+                    int argc, void* data, void* user_data);
+
 
 #endif /* _RAWHID2OSC_H */
