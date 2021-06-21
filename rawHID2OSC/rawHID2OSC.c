@@ -257,25 +257,21 @@ static void parse_notification(uint8_t* p)
     printf("Touch calib done on string %c, results (min/max/avg): %d/%d/%d, quality: %d\n",
            str, min, max, avg, cal);
 
-    if(cal)
+    if(str == 'E')
     {
-      if(str == NOTIF_STRING_E)
-      {
-        violin.cal_state.e_str.cal_touch.min = min;
-        violin.cal_state.e_str.cal_touch.max = max;
-        violin.cal_state.e_str.cal_touch.avg = avg;
-        violin.cal_state.e_str.cal_touch.status = cal;
-      }
-      if(str == NOTIF_STRING_G)
-      {
-        violin.cal_state.g_str.cal_touch.min = min;
-        violin.cal_state.g_str.cal_touch.max = max;
-        violin.cal_state.g_str.cal_touch.avg = avg;
-        violin.cal_state.g_str.cal_touch.status = cal;
-      }
+      violin.cal_state.e_str.cal_touch.min = min;
+      violin.cal_state.e_str.cal_touch.max = max;
+      violin.cal_state.e_str.cal_touch.avg = avg;
+      violin.cal_state.e_str.cal_touch.status = cal;
+    }
+    if(str == 'G')
+    {
+      violin.cal_state.g_str.cal_touch.min = min;
+      violin.cal_state.g_str.cal_touch.max = max;
+      violin.cal_state.g_str.cal_touch.avg = avg;
+      violin.cal_state.g_str.cal_touch.status = cal;
     }
   }
-
   if(p[0] == NOTIF_CALIB_RANGES_DONE)
   {
     char str = (p[2] == NOTIF_STRING_E) ? 'E' : 'G';
@@ -284,23 +280,21 @@ static void parse_notification(uint8_t* p)
     uint8_t cal = p[7];
     printf("Range calib done on string %c, results (min/max): %d/%d, quality: %d\n", str, min, max, cal);
 
-    if(cal)
+    if(str == 'E')
     {
-      if(str == NOTIF_STRING_E)
-      {
-        violin.cal_state.e_str.cal_range.min = min;
-        violin.cal_state.e_str.cal_range.max = max;
-        violin.cal_state.e_str.cal_range.status = cal;
-      }
-      if(str == NOTIF_STRING_G)
-      {
-        violin.cal_state.g_str.cal_range.min = min;
-        violin.cal_state.g_str.cal_range.max = max;
-        violin.cal_state.g_str.cal_range.status = cal;
-      }
+      violin.cal_state.e_str.cal_range.min = min;
+      violin.cal_state.e_str.cal_range.max = max;
+      violin.cal_state.e_str.cal_range.status = cal;
+    }
+    if(str == 'G')
+    {
+      violin.cal_state.g_str.cal_range.min = min;
+      violin.cal_state.g_str.cal_range.max = max;
+      violin.cal_state.g_str.cal_range.status = cal;
     }
   }
 }
+
 
 static void display_help()
 {
@@ -324,7 +318,16 @@ static void display_help()
 
 static void display_calib_vals(void)
 {
-  printf("Some calib values should be displayed here...\n");
+  uint16_t v1 = violin.cal_state.e_str.cal_touch.min;
+  uint16_t v2 = violin.cal_state.e_str.cal_touch.max;
+  uint16_t v3 = violin.cal_state.e_str.cal_touch.avg;
+  bool v4 = violin.cal_state.e_str.cal_touch.status;
+  uint16_t v5 = violin.cal_state.e_str.cal_range.min;
+  uint16_t v6 = violin.cal_state.e_str.cal_range.max;
+  bool v7 = violin.cal_state.e_str.cal_range.status;
+  printf("Some calib values should be displayed here... %d %d %d %d %d %d %d \n", v1, v2, v3, v4, v5, v6, v7);
+
+  lo_send(addr, "/violin/calib/e", "iiiiiii", v1, v2, v3, v4, v5, v6, v7);
 }
 
 uint32_t get_ms(void)
@@ -544,6 +547,10 @@ int command_handler(const char* path, const char* types, lo_arg** argv,
     }
   }
 
+  if(strcmp((const char*)argv[0], "calib") == 0)
+  {
+    display_calib_vals();
+  }
 }
 
 void init()
