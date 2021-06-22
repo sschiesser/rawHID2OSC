@@ -104,7 +104,7 @@ struct violin_s
 };
 
 uint32_t get_ms(void);
-static void parse_notification(uint8_t* p);
+static void parse_hid_notif(uint8_t* p);
 static void parse_keystroke(char c, bool dev_open);
 static void display_help(void);
 static void display_calib_vals(void);

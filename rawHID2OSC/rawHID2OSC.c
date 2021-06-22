@@ -74,7 +74,7 @@ int main()
 
       if(num_bytes > 0)
       {
-        parse_notification(notif);
+        parse_hid_notif(notif);
       }
     }
 
@@ -93,306 +93,122 @@ int main()
   return 0;
 }
 
-static void parse_keystroke(char c1, bool dev_open)
-{
-  uint8_t req[64] = {0};
-  char c2;
 
-  if(!dev_open)
-  {
-    if(c1 == 'o')
-    {
-      int8_t dev_nb = rawhid_open(1, v.dev.vid, v.dev.pid,
-                                  v.dev.page, v.dev.usage);
 
-      if(dev_nb == 1)
-      {
-        v.dev.id++;
-        printf("found rawhid device, dev#%d\n", v.dev.id);
-        v.dev.open = true;
-        display_help();
-      }
-      else
-      {
-        printf("No or too many rawhid devices found\n");
-      }
-    }
-    else
-    {
-      printf("Bad command! Open HID device first.\n");
-    }
-  }
-  else
-  {
-    bool rts = true;
-
-    req[0] = R_CMD;
-    req[2] = (uint8_t)c1;
-    switch(c1)
-    {
-      case 'c':
-      {
-        req[1] = 2;
-        req[2] = R_EXIT;
-        req[3] = R_END;
-        rawhid_send(v.dev.id, req, 64, 100);
-
-        rawhid_close(v.dev.id);
-        v.dev.open = false;
-        v.dev.id--;
-        rts = false;
-        printf("rawHID device closed, press 'o' to open again\n");
-
-        break;
-      }
-
-      case R_HELP:
-      {
-        display_help();
-        break;
-      }
-
-      case R_MEAS:
-      {
-        req[1] = 2;
-        req[3] = R_END;
-        printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
-        break;
-      }
-
-      case R_CALIB_R:
-      {
-        printf("Calib RANGES requested, please choose a string: ");
-        req[1] = 3;
-        while((c2 = get_keystroke()) == 0)
-          ;
-
-        switch(c2)
-        {
-          case 'e':
-            printf("got a 'e'\n");
-            req[3] = R_STR_E;
-            break;
-
-          case 'g':
-            printf("got a 'g'\n");
-            req[3] = R_STR_G;
-            break;
-
-          case 'x':
-            printf("got a 'x'... exiting\n");
-            req[3] = R_STR_A;
-            break;
-
-          default:
-            printf("got something else\n");
-            req[3] = R_STR_A;
-            break;
-        }
-        req[4] = R_END;
-        printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-        break;
-      }
-
-      case R_CALIB_T:
-      {
-        printf("Calib TOUCH requested, please choose a string: ");
-        req[1] = 3;
-        while((c2 = get_keystroke()) == 0)
-          ;
-
-        switch(c2)
-        {
-          case 'e':
-            printf("got a 'e'\n");
-            req[3] = R_STR_E;
-            break;
-
-          case 'g':
-            printf("got a 'g'\n");
-            req[3] = R_STR_G;
-            break;
-
-          case 'x':
-            printf("got a 'x'... exiting\n");
-            req[3] = R_STR_A;
-            break;
-
-          default:
-            printf("got something else\n");
-            req[3] = R_STR_A;
-            break;
-        }
-
-        req[4] = R_END;
-        printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-        break;
-      }
-
-      case R_VIEW:
-      {
-        display_calib_vals();
-        break;
-      }
-
-      case R_EXIT:
-      {
-        req[1] = 2;
-        req[3] = R_END;
-        printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
-        break;
-      }
-
-      default:
-        rts = false;
-        break;
-    }
-
-    if(rts)
-    {
-      if(rawhid_send(v.dev.id, req, 64, 100) < 0)
-      {
-        printf("Error on sending packet to device #%d, closing HID device\n", v.dev.id);
-        rawhid_close(v.dev.id);
-        v.dev.open = false;
-        v.dev.id--;
-      }
-    }
-  }
-}
-
-static void parse_notification(uint8_t* p)
+/******************************************************************************
+* HID ZONE
+*******************************************************************************/
+static void parse_hid_notif(uint8_t* p)
 {
   uint8_t len = p[1];
   v.cur_st = p[len];
-  printf("Received (len = %d, state = 0x%02x): ", len, v.cur_st);
-  for(uint8_t i = 0; i < (len + 2); i++)
+  if(debug)
   {
-    printf("0x%02x ", p[i]);
+    printf("Received (len = %d, state = 0x%02x): ", len, v.cur_st);
+    for(uint8_t i = 0; i < (len + 2); i++)
+    {
+      printf("0x%02x ", p[i]);
+    }
+    printf("\n");
   }
-  printf("\n");
-  if(p[0] == N_MEAS)
-  {
-    cur_time = get_ms();
-    uint32_t delta_host = cur_time - prev_time;
-    prev_time = cur_time;
-    uint32_t delta_teensy = ((uint32_t)((p[2] << 8) | (p[3])) / 1.0);
-    uint16_t g = (uint16_t)((uint16_t)(p[4] << 8) | (p[5]));
-    uint16_t e = (uint16_t)((uint16_t)(p[6] << 8) | (p[7]));
-    //printf("forwarding to %s on %s: %d %d %d %d\n", v.osc.s.host, v.osc.s.port, delta_teensy, delta_host, e, g);
-    lo_send(addr, v.osc.s.n_meas_addr, "iiii",
-            delta_teensy, delta_host, e, g);
-  }
-  if(p[0] == N_CT_DONE)
-  {
-    char str = (p[2] == N_STR_E) ? 'E' : 'G';
-    uint16_t min = (p[3] << 8) | p[4];
-    uint16_t max = (p[5] << 8) | p[6];
-    uint16_t avg = (p[7] << 8) | p[8];
-    uint8_t cal = p[9];
-    printf("Touch calib done on string %c, results (min/max/avg): %d/%d/%d, quality: %d\n",
-           str, min, max, avg, cal);
 
-    if(str == 'E')
-    {
-      v.cal_st.e_str.calib_t.min = min;
-      v.cal_st.e_str.calib_t.max = max;
-      v.cal_st.e_str.calib_t.avg = avg;
-      v.cal_st.e_str.calib_t.st = cal;
-    }
-    if(str == 'G')
-    {
-      v.cal_st.g_str.calib_t.min = min;
-      v.cal_st.g_str.calib_t.max = max;
-      v.cal_st.g_str.calib_t.avg = avg;
-      v.cal_st.g_str.calib_t.st = cal;
-    }
-  }
-  if(p[0] == N_CR_DONE)
+  switch(p[0])
   {
-    char str = (p[2] == N_STR_E) ? 'E' : 'G';
-    uint16_t min = (p[3] << 8) | p[4];
-    uint16_t max = (p[5] << 8) | p[6];
-    uint8_t cal = p[7];
-    printf("Range calib done on string %c, results (min/max): %d/%d, quality: %d\n", str, min, max, cal);
-
-    if(str == 'E')
+    case N_MEAS:
     {
-      v.cal_st.e_str.calib_r.min = min;
-      v.cal_st.e_str.calib_r.max = max;
-      v.cal_st.e_str.calib_r.st = cal;
-    }
-    if(str == 'G')
-    {
-      v.cal_st.g_str.calib_r.min = min;
-      v.cal_st.g_str.calib_r.max = max;
-      v.cal_st.g_str.calib_r.st = cal;
-    }
-  }
-}
-
-static void display_help()
-{
-  switch(v.cur_st)
-  {
-    case STATE_IDLE:
-    {
-      printf("To navigate here:\n"
-             "'r' : calibrate string RANGES\n"
-             "'t' : calibrate TOUCH thresholds\n"
-             "'m' : start MEASUREMENTS\n"
-             "'h' : display HELP\n"
-             "'x' : EXIT program\n");
+      cur_time = get_ms();
+      uint32_t delta_host = cur_time - prev_time;
+      prev_time = cur_time;
+      uint32_t delta_teensy = ((uint32_t)((p[2] << 8) | (p[3])) / 1.0);
+      uint16_t g = (uint16_t)((uint16_t)(p[4] << 8) | (p[5]));
+      uint16_t e = (uint16_t)((uint16_t)(p[6] << 8) | (p[7]));
+      //printf("forwarding to %s on %s: %d %d %d %d\n", v.osc.s.host, v.osc.s.port, delta_teensy, delta_host, e, g);
+      lo_send(addr, v.osc.s.n_meas_addr, "iiii",
+              delta_teensy, delta_host, e, g);
       break;
     }
+
+    case N_INFO:
+      break;
+
+    case N_ACK:
+      break;
 
     default:
       break;
   }
-}
+  if(p[0] == N_MEAS)
 
-static void display_calib_vals(void)
-{
-  uint16_t v1 = v.cal_st.e_str.calib_t.min;
-  uint16_t v2 = v.cal_st.e_str.calib_t.max;
-  uint16_t v3 = v.cal_st.e_str.calib_t.avg;
-  bool v4 = v.cal_st.e_str.calib_t.st;
-  uint16_t v5 = v.cal_st.e_str.calib_r.min;
-  uint16_t v6 = v.cal_st.e_str.calib_r.max;
-  bool v7 = v.cal_st.e_str.calib_r.st;
-  printf("Some calib values should be displayed here... %d %d %d %d %d %d %d \n", v1, v2, v3, v4, v5, v6, v7);
 
-  lo_send(addr, "/violin/calib/e", "iiiiiii", v1, v2, v3, v4, v5, v6, v7);
-}
 
-uint32_t get_ms(void)
-{
-  LARGE_INTEGER now;
-  LARGE_INTEGER frequency;
+    if(p[0] == N_CT_DONE)
+    {
 
-  QueryPerformanceFrequency(&frequency);
-  QueryPerformanceCounter(&now);
+      char str = (char)p[2];
+      uint16_t min = (p[3] << 8) | p[4];
+      uint16_t max = (p[5] << 8) | p[6];
+      uint16_t avg = (p[7] << 8) | p[8];
+      uint8_t cal = p[9];
+      switch(str)
+      {
+        case 'E':
+          v.cal_st.e_str.calib_t.min = min;
+          v.cal_st.e_str.calib_t.max = max;
+          v.cal_st.e_str.calib_t.avg = avg;
+          v.cal_st.e_str.calib_t.st = cal;
+          break;
 
-  now.QuadPart *= 1000;
-  return (now.QuadPart / frequency.QuadPart);
-}
+        case 'G':
+          v.cal_st.g_str.calib_t.min = min;
+          v.cal_st.g_str.calib_t.max = max;
+          v.cal_st.g_str.calib_t.avg = avg;
+          v.cal_st.g_str.calib_t.st = cal;
+          break;
 
-static char get_keystroke(void)
-{
-  if(_kbhit())
+        case 'A':
+        case 'D':
+        default:
+          break;
+      }
+      if(debug) printf("Touch calib done on string %c, "
+                       "results (min/max/avg): %d/%d/%d, quality: %d\n",
+                       str, min, max, avg, cal);
+    }
+
+  if(p[0] == N_CR_DONE)
   {
-    char c = _getch();
-    if(c >= 32) return c;
+    char str = (char)p[2];
+    uint16_t min = (p[3] << 8) | p[4];
+    uint16_t max = (p[5] << 8) | p[6];
+    uint8_t cal = p[7];
+    switch(str)
+    {
+      case 'E':
+        v.cal_st.e_str.calib_r.min = min;
+        v.cal_st.e_str.calib_r.max = max;
+        v.cal_st.e_str.calib_r.st = cal;
+        break;
+
+      case 'G':
+        v.cal_st.g_str.calib_r.min = min;
+        v.cal_st.g_str.calib_r.max = max;
+        v.cal_st.g_str.calib_r.st = cal;
+        break;
+
+      case 'A':
+      case 'D':
+      default:
+        break;
+    }
+    if(debug) printf("Range calib done on string %c,"
+                     " results (min/max): %d/%d, quality: %d\n",
+                     str, min, max, cal);
   }
-  return 0;
 }
 
-void lo_error(int num, const char* msg, const char* path)
-{
-  printf("liblo server error %d in path %s: %s\n", num, path, msg);
-  fflush(stdout);
-}
-
+/******************************************************************************
+* OSC ZONE
+*******************************************************************************/
 int r_meas_handler(const char* path, const char* types, lo_arg** argv,
                    int argc, void* data, void* user_data)
 {
@@ -601,17 +417,18 @@ int r_hid_handler(const char* path, const char* types, lo_arg** argv,
   }
   else if((strcmp((const char*)argv[0], "close") == 0) && v.dev.open)
   {
-    printf("Closing HID device!\n");
+    if(debug) printf("Closing HID device!\n");
     v.dev.open = false;
     v.dev.id--;
   }
   else if(strcmp((const char*)argv[0], "state") == 0)
   {
-    printf("Sending hid state\n");
+    if(debug) printf("Sending hid state\n");
+    lo_send(addr, v.osc.s.n_hid_addr, "i", v.dev.open);
   }
   else
   {
-    printf("Bad HID command\n");
+    if(debug) printf("Bad HID command\n");
   }
 
   return 0;
@@ -624,20 +441,262 @@ int r_app_handler(const char* path, const char* types, lo_arg** argv,
 
   if(strcmp((const char*)argv[0], "close") == 0)
   {
-    printf("Stopping app\n");
+    if(debug) printf("Stopping app\n");
     app_running = false;
   }
   else if(strcmp((const char*)argv[0], "state") == 0)
   {
-    printf("Sending app state\n");
+    if(debug) printf("Sending app state\n");
+    lo_send(addr, v.osc.s.n_app_addr, "i", 1);
   }
   else
   {
-    printf("Bad 'app' command\n");
+    if(debug) printf("Bad 'app' command\n");
   }
   return 0;
 }
 
+void lo_error(int num, const char* msg, const char* path)
+{
+  printf("liblo server error %d in path %s: %s\n", num, path, msg);
+  fflush(stdout);
+}
+
+
+
+static void display_calib_vals(void)
+{
+  uint16_t v1 = v.cal_st.e_str.calib_t.min;
+  uint16_t v2 = v.cal_st.e_str.calib_t.max;
+  uint16_t v3 = v.cal_st.e_str.calib_t.avg;
+  bool v4 = v.cal_st.e_str.calib_t.st;
+  uint16_t v5 = v.cal_st.e_str.calib_r.min;
+  uint16_t v6 = v.cal_st.e_str.calib_r.max;
+  bool v7 = v.cal_st.e_str.calib_r.st;
+  if(debug) printf("Some calib values should be displayed here... "
+                   "%d %d %d %d %d %d %d\n",
+                   v1, v2, v3, v4, v5, v6, v7);
+
+  lo_send(addr, "/violin/calib/e", "iiiiiii", v1, v2, v3, v4, v5, v6, v7);
+}
+
+
+/******************************************************************************
+* UI ZONE
+*******************************************************************************/
+static void parse_keystroke(char c1, bool dev_open)
+{
+  uint8_t req[64] = {0};
+  char c2;
+
+  if(!dev_open)
+  {
+    if(c1 == 'o')
+    {
+      int8_t dev_nb = rawhid_open(1, v.dev.vid, v.dev.pid,
+                                  v.dev.page, v.dev.usage);
+
+      if(dev_nb == 1)
+      {
+        v.dev.id++;
+        printf("found rawhid device, dev#%d\n", v.dev.id);
+        v.dev.open = true;
+        display_help();
+      }
+      else
+      {
+        printf("No or too many rawhid devices found\n");
+      }
+    }
+    else
+    {
+      printf("Bad command! Open HID device first.\n");
+    }
+  }
+  else
+  {
+    bool rts = true;
+
+    req[0] = R_CMD;
+    req[2] = (uint8_t)c1;
+    switch(c1)
+    {
+      case 'c':
+      {
+        req[1] = 2;
+        req[2] = R_EXIT;
+        req[3] = R_END;
+        rawhid_send(v.dev.id, req, 64, 100);
+
+        rawhid_close(v.dev.id);
+        v.dev.open = false;
+        v.dev.id--;
+        rts = false;
+        printf("rawHID device closed, press 'o' to open again\n");
+
+        break;
+      }
+
+      case R_HELP:
+      {
+        display_help();
+        break;
+      }
+
+      case R_MEAS:
+      {
+        req[1] = 2;
+        req[3] = R_END;
+        printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+        break;
+      }
+
+      case R_CALIB_R:
+      {
+        printf("Calib RANGES requested, please choose a string: ");
+        req[1] = 3;
+        while((c2 = get_keystroke()) == 0)
+          ;
+
+        switch(c2)
+        {
+          case 'e':
+            printf("got a 'e'\n");
+            req[3] = R_STR_E;
+            break;
+
+          case 'g':
+            printf("got a 'g'\n");
+            req[3] = R_STR_G;
+            break;
+
+          case 'x':
+            printf("got a 'x'... exiting\n");
+            req[3] = R_STR_A;
+            break;
+
+          default:
+            printf("got something else\n");
+            req[3] = R_STR_A;
+            break;
+        }
+        req[4] = R_END;
+        printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+        break;
+      }
+
+      case R_CALIB_T:
+      {
+        printf("Calib TOUCH requested, please choose a string: ");
+        req[1] = 3;
+        while((c2 = get_keystroke()) == 0)
+          ;
+
+        switch(c2)
+        {
+          case 'e':
+            printf("got a 'e'\n");
+            req[3] = R_STR_E;
+            break;
+
+          case 'g':
+            printf("got a 'g'\n");
+            req[3] = R_STR_G;
+            break;
+
+          case 'x':
+            printf("got a 'x'... exiting\n");
+            req[3] = R_STR_A;
+            break;
+
+          default:
+            printf("got something else\n");
+            req[3] = R_STR_A;
+            break;
+        }
+
+        req[4] = R_END;
+        printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+        break;
+      }
+
+      case R_VIEW:
+      {
+        display_calib_vals();
+        break;
+      }
+
+      case R_EXIT:
+      {
+        req[1] = 2;
+        req[3] = R_END;
+        printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+        break;
+      }
+
+      default:
+        rts = false;
+        break;
+    }
+
+    if(rts)
+    {
+      if(rawhid_send(v.dev.id, req, 64, 100) < 0)
+      {
+        printf("Error on sending packet to device #%d, closing HID device\n", v.dev.id);
+        rawhid_close(v.dev.id);
+        v.dev.open = false;
+        v.dev.id--;
+      }
+    }
+  }
+}
+
+static void display_help()
+{
+  switch(v.cur_st)
+  {
+    case STATE_IDLE:
+    {
+      printf("To navigate here:\n"
+             "'r' : calibrate string RANGES\n"
+             "'t' : calibrate TOUCH thresholds\n"
+             "'m' : start MEASUREMENTS\n"
+             "'h' : display HELP\n"
+             "'x' : EXIT program\n");
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
+static char get_keystroke(void)
+{
+  if(_kbhit())
+  {
+    char c = _getch();
+    if(c >= 32) return c;
+  }
+  return 0;
+}
+
+
+/******************************************************************************
+* UTILS ZONE
+*******************************************************************************/
+uint32_t get_ms(void)
+{
+  LARGE_INTEGER now;
+  LARGE_INTEGER frequency;
+
+  QueryPerformanceFrequency(&frequency);
+  QueryPerformanceCounter(&now);
+
+  now.QuadPart *= 1000;
+  return (now.QuadPart / frequency.QuadPart);
+}
 
 void init()
 {}
