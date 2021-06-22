@@ -1,10 +1,47 @@
 #include "rawHID2OSC.h"
 
+struct violin_s v = {
+  .osc.s.host = OSC_SEND_HOST,
+  .osc.s.port = OSC_SEND_PORT,
+  .osc.s.n_meas_addr = OSC_NOTIF_MEAS,
+  .osc.s.n_calib_t_addr = OSC_NOTIF_CALIB_T,
+  .osc.s.n_calib_r_addr = OSC_NOTIF_CALIB_R,
+  .osc.s.n_view_addr = OSC_NOTIF_VIEW,
+  .osc.s.n_hid_addr = OSC_NOTIF_HID,
+  .osc.s.n_app_addr = OSC_NOTIF_APP,
+  .osc.r.port = OSC_RECV_PORT,
+  .osc.r.r_meas_addr = OSC_REQ_MEAS,
+  .osc.r.r_calib_t_addr = OSC_REQ_CALIB_T,
+  .osc.r.r_calib_r_addr = OSC_REQ_CALIB_R,
+  .osc.r.r_view_addr = OSC_REQ_VIEW,
+  .osc.r.r_hid_addr = OSC_REQ_HID,
+  .osc.r.r_app_addr = OSC_REQ_APP,
+  .dev.vid = HID_VID,
+  .dev.pid = HID_PID,
+  .dev.page = HID_PAGE,
+  .dev.usage = HID_USAGE,
+  .dev.id = HID_DEV_NONE,
+  .dev.open = false,
+  .cal_st.e_str.calib_r.min = UINT16_MAX,
+  .cal_st.e_str.calib_r.max = 0,
+  .cal_st.e_str.calib_r.st = false,
+  .cal_st.e_str.calib_t.min = UINT16_MAX,
+  .cal_st.e_str.calib_t.max = 0,
+  .cal_st.e_str.calib_t.avg = UINT16_MAX,
+  .cal_st.e_str.calib_t.st = false,
+  .cal_st.g_str.calib_r.min = UINT16_MAX,
+  .cal_st.g_str.calib_r.max = 0,
+  .cal_st.g_str.calib_r.st = false,
+  .cal_st.g_str.calib_t.min = UINT16_MAX,
+  .cal_st.g_str.calib_t.max = 0,
+  .cal_st.g_str.calib_t.avg = UINT16_MAX,
+  .cal_st.g_str.calib_t.st = false
+};
+
 const bool debug = true;
 lo_address addr;
 lo_server_thread st;
 uint32_t cur_time, prev_time;
-struct violin_s violin;
 bool app_running;
 
 int main()
@@ -23,15 +60,15 @@ int main()
 
   while(app_running)
   {
-    if(violin.device.open)
+    if(v.dev.open)
     {
-      num_bytes = rawhid_recv(violin.device.dev_id, notif, 64, 220);
+      num_bytes = rawhid_recv(v.dev.id, notif, 64, 220);
       if(num_bytes < 0)
       {
-        printf("\nerror reading on device#%d, device went offline\n", violin.device.dev_id);
-        rawhid_close(violin.device.dev_id);
-        violin.device.open = false;
-        violin.device.dev_id--;
+        printf("\nerror reading on device#%d, device went offline\n", v.dev.id);
+        rawhid_close(v.dev.id);
+        v.dev.open = false;
+        v.dev.id--;
         printf("Press 'o' to open the rawHID device, 'c' to close it\n");
       }
 
@@ -43,7 +80,7 @@ int main()
 
     while((c = get_keystroke()) >= 32)
     {
-      parse_keystroke(c, violin.device.open);
+      parse_keystroke(c, v.dev.open);
     }
 
 #if defined(OS_LINUX) || defined(OS_MACOSX)
@@ -65,14 +102,14 @@ static void parse_keystroke(char c1, bool dev_open)
   {
     if(c1 == 'o')
     {
-      int8_t dev_nb = rawhid_open(1, violin.device.vid, violin.device.pid,
-                                  violin.device.page, violin.device.usage);
+      int8_t dev_nb = rawhid_open(1, v.dev.vid, v.dev.pid,
+                                  v.dev.page, v.dev.usage);
 
       if(dev_nb == 1)
       {
-        violin.device.dev_id++;
-        printf("found rawhid device, dev#%d\n", violin.device.dev_id);
-        violin.device.open = true;
+        v.dev.id++;
+        printf("found rawhid device, dev#%d\n", v.dev.id);
+        v.dev.open = true;
         display_help();
       }
       else
@@ -98,11 +135,11 @@ static void parse_keystroke(char c1, bool dev_open)
         req[1] = 2;
         req[2] = R_EXIT;
         req[3] = R_END;
-        rawhid_send(violin.device.dev_id, req, 64, 100);
+        rawhid_send(v.dev.id, req, 64, 100);
 
-        rawhid_close(violin.device.dev_id);
-        violin.device.open = false;
-        violin.device.dev_id--;
+        rawhid_close(v.dev.id);
+        v.dev.open = false;
+        v.dev.id--;
         rts = false;
         printf("rawHID device closed, press 'o' to open again\n");
 
@@ -213,12 +250,12 @@ static void parse_keystroke(char c1, bool dev_open)
 
     if(rts)
     {
-      if(rawhid_send(violin.device.dev_id, req, 64, 100) < 0)
+      if(rawhid_send(v.dev.id, req, 64, 100) < 0)
       {
-        printf("Error on sending packet to device #%d, closing HID device\n", violin.device.dev_id);
-        rawhid_close(violin.device.dev_id);
-        violin.device.open = false;
-        violin.device.dev_id--;
+        printf("Error on sending packet to device #%d, closing HID device\n", v.dev.id);
+        rawhid_close(v.dev.id);
+        v.dev.open = false;
+        v.dev.id--;
       }
     }
   }
@@ -227,8 +264,8 @@ static void parse_keystroke(char c1, bool dev_open)
 static void parse_notification(uint8_t* p)
 {
   uint8_t len = p[1];
-  violin.cur_state = p[len];
-  printf("Received (len = %d, state = 0x%02x): ", len, violin.cur_state);
+  v.cur_st = p[len];
+  printf("Received (len = %d, state = 0x%02x): ", len, v.cur_st);
   for(uint8_t i = 0; i < (len + 2); i++)
   {
     printf("0x%02x ", p[i]);
@@ -239,13 +276,12 @@ static void parse_notification(uint8_t* p)
     cur_time = get_ms();
     uint32_t delta_host = cur_time - prev_time;
     prev_time = cur_time;
-    double delta_teensy = (double)((uint32_t)((p[2] << 8) | (p[3])) / 1.0);
-    uint16_t gVal = (uint16_t)((uint16_t)(p[4] << 8) | (p[5]));
-    uint16_t eVal = (uint16_t)((uint16_t)(p[6] << 8) | (p[7]));
-    //printf("forwarding to %s on %s: %f\n", sender_host, sender_port, delta_ms);
-    lo_send(addr, violin.osc.sender.systime_addr, "fi", delta_teensy, delta_host);
-    lo_send(addr, "/violin/pos/g", "i", gVal);
-    lo_send(addr, "/violin/pos/e", "i", eVal);
+    uint32_t delta_teensy = ((uint32_t)((p[2] << 8) | (p[3])) / 1.0);
+    uint16_t g = (uint16_t)((uint16_t)(p[4] << 8) | (p[5]));
+    uint16_t e = (uint16_t)((uint16_t)(p[6] << 8) | (p[7]));
+    //printf("forwarding to %s on %s: %d %d %d %d\n", v.osc.s.host, v.osc.s.port, delta_teensy, delta_host, e, g);
+    lo_send(addr, v.osc.s.n_meas_addr, "iiii",
+            delta_teensy, delta_host, e, g);
   }
   if(p[0] == N_CT_DONE)
   {
@@ -259,17 +295,17 @@ static void parse_notification(uint8_t* p)
 
     if(str == 'E')
     {
-      violin.cal_state.e_str.cal_touch.min = min;
-      violin.cal_state.e_str.cal_touch.max = max;
-      violin.cal_state.e_str.cal_touch.avg = avg;
-      violin.cal_state.e_str.cal_touch.status = cal;
+      v.cal_st.e_str.calib_t.min = min;
+      v.cal_st.e_str.calib_t.max = max;
+      v.cal_st.e_str.calib_t.avg = avg;
+      v.cal_st.e_str.calib_t.st = cal;
     }
     if(str == 'G')
     {
-      violin.cal_state.g_str.cal_touch.min = min;
-      violin.cal_state.g_str.cal_touch.max = max;
-      violin.cal_state.g_str.cal_touch.avg = avg;
-      violin.cal_state.g_str.cal_touch.status = cal;
+      v.cal_st.g_str.calib_t.min = min;
+      v.cal_st.g_str.calib_t.max = max;
+      v.cal_st.g_str.calib_t.avg = avg;
+      v.cal_st.g_str.calib_t.st = cal;
     }
   }
   if(p[0] == N_CR_DONE)
@@ -282,23 +318,22 @@ static void parse_notification(uint8_t* p)
 
     if(str == 'E')
     {
-      violin.cal_state.e_str.cal_range.min = min;
-      violin.cal_state.e_str.cal_range.max = max;
-      violin.cal_state.e_str.cal_range.status = cal;
+      v.cal_st.e_str.calib_r.min = min;
+      v.cal_st.e_str.calib_r.max = max;
+      v.cal_st.e_str.calib_r.st = cal;
     }
     if(str == 'G')
     {
-      violin.cal_state.g_str.cal_range.min = min;
-      violin.cal_state.g_str.cal_range.max = max;
-      violin.cal_state.g_str.cal_range.status = cal;
+      v.cal_st.g_str.calib_r.min = min;
+      v.cal_st.g_str.calib_r.max = max;
+      v.cal_st.g_str.calib_r.st = cal;
     }
   }
 }
 
-
 static void display_help()
 {
-  switch(violin.cur_state)
+  switch(v.cur_st)
   {
     case STATE_IDLE:
     {
@@ -318,13 +353,13 @@ static void display_help()
 
 static void display_calib_vals(void)
 {
-  uint16_t v1 = violin.cal_state.e_str.cal_touch.min;
-  uint16_t v2 = violin.cal_state.e_str.cal_touch.max;
-  uint16_t v3 = violin.cal_state.e_str.cal_touch.avg;
-  bool v4 = violin.cal_state.e_str.cal_touch.status;
-  uint16_t v5 = violin.cal_state.e_str.cal_range.min;
-  uint16_t v6 = violin.cal_state.e_str.cal_range.max;
-  bool v7 = violin.cal_state.e_str.cal_range.status;
+  uint16_t v1 = v.cal_st.e_str.calib_t.min;
+  uint16_t v2 = v.cal_st.e_str.calib_t.max;
+  uint16_t v3 = v.cal_st.e_str.calib_t.avg;
+  bool v4 = v.cal_st.e_str.calib_t.st;
+  uint16_t v5 = v.cal_st.e_str.calib_r.min;
+  uint16_t v6 = v.cal_st.e_str.calib_r.max;
+  bool v7 = v.cal_st.e_str.calib_r.st;
   printf("Some calib values should be displayed here... %d %d %d %d %d %d %d \n", v1, v2, v3, v4, v5, v6, v7);
 
   lo_send(addr, "/violin/calib/e", "iiiiiii", v1, v2, v3, v4, v5, v6, v7);
@@ -358,15 +393,74 @@ void lo_error(int num, const char* msg, const char* path)
   fflush(stdout);
 }
 
-int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
-                        int argc, void* data, void* user_data)
+int r_meas_handler(const char* path, const char* types, lo_arg** argv,
+                   int argc, void* data, void* user_data)
+{
+  static bool measuring = false;
+  uint8_t req[64];
+  bool rts = true;
+
+  if(debug)
+  {
+    printf("MEASURE handler!\n");
+    printf("%s <- i:%d\n", path, argv[0]->i);
+  }
+
+  if(argc != OSC_REQ_ARGS) return -1;
+
+  bool meas_cmd = (bool)argv[0]->i;
+
+  req[0] = R_CMD;
+  req[1] = 2;
+  req[3] = R_END;
+  if(!measuring && meas_cmd)
+  {
+    if(debug) printf("Starting measurement!\n");
+    req[2] = R_MEAS;
+    measuring = true;
+  }
+  else if(measuring && !meas_cmd)
+  {
+    if(debug) printf("Stopping measurement!\n");
+    req[2] = R_EXIT;
+    measuring = false;
+  }
+  else
+  {
+    if(debug) printf("Wrong command!\n");
+    rts = false;
+  }
+
+  if(rts)
+  {
+    if(rawhid_send(v.dev.id, req, 64, 100) < 0)
+    {
+      if(debug) printf("Error on sending packet, closing HID device\n");
+      rawhid_close(v.dev.id);
+      v.dev.open = false;
+      v.dev.id--;
+    }
+  }
+
+  fflush(stdout);
+
+  return 0;
+}
+
+int r_calib_t_handler(const char* path, const char* types, lo_arg** argv,
+                      int argc, void* data, void* user_data)
 {
   static bool calibrating = false;
   uint8_t req[64];
   bool rts = true;
 
-  printf("TOUCH handler!\n");
-  printf("%s <- c:%c\n", path, argv[0]->c);
+  if(debug)
+  {
+    printf("TOUCH handler!\n");
+    printf("%s <- c:%c\n", path, argv[0]->c);
+  }
+  if(argc != OSC_REQ_ARGS) return -1;
+
 
   char cal_string = argv[0]->c;
   if(calibrating)
@@ -379,7 +473,7 @@ int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
       req[3] = R_END;
       calibrating = false;
     }
-    else
+    else if(debug)
       printf("Comand not valid!\n");
   }
   else
@@ -400,13 +494,16 @@ int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
 
   if(rts)
   {
-    printf("Sending 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-    if(rawhid_send(violin.device.dev_id, req, 64, 100) < 0)
+    if(debug) printf("Sending 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
+                     req[0], req[1], req[2], req[3], req[4]);
+
+    if(rawhid_send(v.dev.id, req, 64, 100) < 0)
     {
-      printf("Error on sending packet, closing HID device\n");
-      rawhid_close(violin.device.dev_id);
-      violin.device.open = false;
-      violin.device.dev_id--;
+      if(debug) printf("Error on sending packet, closing HID device\n");
+
+      rawhid_close(v.dev.id);
+      v.dev.open = false;
+      v.dev.id--;
     }
   }
 
@@ -415,15 +512,20 @@ int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
   return 1;
 }
 
-int calib_range_handler(const char* path, const char* types, lo_arg** argv,
-                        int argc, void* data, void* user_data)
+int r_calib_r_handler(const char* path, const char* types, lo_arg** argv,
+                      int argc, void* data, void* user_data)
 {
   static bool calibrating = false;
   uint8_t req[64];
   bool rts = true;
 
-  printf("RANGE handler!\n");
-  printf("%s <- c:%c\n", path, argv[0]->c);
+  if(debug)
+  {
+    printf("RANGE handler!\n");
+    printf("%s <- c:%c\n", path, argv[0]->c);
+  }
+
+  if(argc != OSC_REQ_ARGS) return -1;
 
   char cal_string = argv[0]->c;
   req[0] = R_CMD;
@@ -437,13 +539,15 @@ int calib_range_handler(const char* path, const char* types, lo_arg** argv,
 
   if(rts)
   {
-    printf("Sending 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
-    if(rawhid_send(violin.device.dev_id, req, 64, 100) < 0)
+    if(debug) printf("Sending 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
+
+    if(rawhid_send(v.dev.id, req, 64, 100) < 0)
     {
-      printf("Error on sending packet, closing HID device\n");
-      rawhid_close(violin.device.dev_id);
-      violin.device.open = false;
-      violin.device.dev_id--;
+      if(debug) printf("Error on sending packet, closing HID device\n");
+
+      rawhid_close(v.dev.id);
+      v.dev.open = false;
+      v.dev.id--;
     }
   }
 
@@ -452,150 +556,110 @@ int calib_range_handler(const char* path, const char* types, lo_arg** argv,
   return 1;
 }
 
-int measure_handler(const char* path, const char* types, lo_arg** argv,
-                    int argc, void* data, void* user_data)
+int r_view_handler(const char* path, const char* types, lo_arg** argv,
+                   int argc, void* data, void* user_data)
 {
-  static bool measuring = false;
-  uint8_t req[64];
-  bool rts = true;
+  if(argc != OSC_REQ_ARGS) return -1;
 
-  printf("MEASURE handler!\n");
-  printf("%s <- i:%d\n", path, argv[0]->i);
-  bool meas_cmd = (bool)argv[0]->i;
-
-  req[0] = R_CMD;
-  req[1] = 2;
-  req[3] = R_END;
-  if(!measuring && meas_cmd)
+  if(strcmp((const char*)argv[0], "r") == 0)
   {
-    printf("Starting measurement!\n");
-    req[2] = R_MEAS;
-    measuring = true;
+    if(debug) printf("Viewing range values\n");
   }
-  else if(measuring && !meas_cmd)
+  else if(strcmp((const char*)argv[0], "t") == 0)
   {
-    printf("Stopping measurement!\n");
-    req[2] = R_EXIT;
-    measuring = false;
+    if(debug) printf("Viewing touch values\n");
+  }
+  else if(strcmp((const char*)argv[0], "all") == 0)
+  {
+    if(debug) printf("Viewing all values\n");
+  }
+
+  return 0;
+}
+
+int r_hid_handler(const char* path, const char* types, lo_arg** argv,
+                  int argc, void* data, void* user_data)
+{
+  if(argc != OSC_REQ_ARGS) return -1;
+
+  if((strcmp((const char*)argv[0], "open") == 0) && !v.dev.open)
+  {
+    printf("Opening HID device!\n");
+    int8_t dev_nb = rawhid_open(1, v.dev.vid, v.dev.pid,
+                                v.dev.page, v.dev.usage);
+    if(dev_nb == 1)
+    {
+      v.dev.id++;
+      printf("found rawhid device, dev#%d\n", v.dev.id);
+      v.dev.open = true;
+      display_help();
+    }
+    else
+    {
+      printf("No or too many rawhid devices found\n");
+    }
+  }
+  else if((strcmp((const char*)argv[0], "close") == 0) && v.dev.open)
+  {
+    printf("Closing HID device!\n");
+    v.dev.open = false;
+    v.dev.id--;
+  }
+  else if(strcmp((const char*)argv[0], "state") == 0)
+  {
+    printf("Sending hid state\n");
   }
   else
   {
-    printf("Wrong command!\n");
-    rts = false;
+    printf("Bad HID command\n");
   }
 
-  if(rts)
-  {
-    if(rawhid_send(violin.device.dev_id, req, 64, 100) < 0)
-    {
-      printf("Error on sending packet, closing HID device\n");
-      rawhid_close(violin.device.dev_id);
-      violin.device.open = false;
-      violin.device.dev_id--;
-    }
-  }
-
-  fflush(stdout);
-
-  return 1;
+  return 0;
 }
 
-int command_handler(const char* path, const char* types, lo_arg** argv,
-                    int argc, void* data, void* user_data)
+int r_app_handler(const char* path, const char* types, lo_arg** argv,
+                  int argc, void* data, void* user_data)
 {
-  if(strcmp((const char*)argv[0], "hid") == 0)
-  {
-    if((strcmp((const char*)argv[1], "open") == 0) && !violin.device.open)
-    {
-      printf("Opening HID device!\n");
-      int8_t dev_nb = rawhid_open(1, violin.device.vid, violin.device.pid,
-                                  violin.device.page, violin.device.usage);
-      if(dev_nb == 1)
-      {
-        violin.device.dev_id++;
-        printf("found rawhid device, dev#%d\n", violin.device.dev_id);
-        violin.device.open = true;
-        display_help();
-      }
-      else
-      {
-        printf("No or too many rawhid devices found\n");
-      }
-    }
-    else if((strcmp((const char*)argv[1], "close") == 0) && violin.device.open)
-    {
-      printf("Closing HID device!\n");
-      violin.device.open = false;
-      violin.device.dev_id--;
-    }
-    else
-    {
-      printf("Bad HID command\n");
-    }
-  }
+  if(argc != OSC_REQ_ARGS) return -1;
 
-  if(strcmp((const char*)argv[0], "app") == 0)
+  if(strcmp((const char*)argv[0], "close") == 0)
   {
-    if(strcmp((const char*)argv[1], "close") == 0)
-    {
-      printf("Stopping app\n");
-      app_running = false;
-    }
-    else
-    {
-      printf("Bad 'app' command\n");
-    }
+    printf("Stopping app\n");
+    app_running = false;
   }
-
-  if(strcmp((const char*)argv[0], "calib") == 0)
+  else if(strcmp((const char*)argv[0], "state") == 0)
   {
-    display_calib_vals();
+    printf("Sending app state\n");
   }
+  else
+  {
+    printf("Bad 'app' command\n");
+  }
+  return 0;
 }
+
 
 void init()
-{
-  char sh[] = "127.0.0.1";
-  char sp[] = "19001";
-  char ssyst[] = "/violin/systime";
-  char spos[] = "/violin/pos";
-  char rp[] = "19002";
-  char rct[] = "/violin/calib/touch";
-  char rcr[] = "/violin/calib/range";
-  char rm[] = "/violin/measure";
-  char rcmd[] = "/violin/command";
-
-  violin.device.dev_id = -1;
-  violin.device.vid = 0x1C57;
-  violin.device.pid = 0x1234;
-  violin.device.page = 0xFFAB;
-  violin.device.usage = 0x0200;
-  violin.device.open = false;
-
-  violin.cur_state = STATE_IDLE;
-
-  memcpy(violin.osc.sender.host, sh, sizeof(sh));
-  memcpy(violin.osc.sender.port, sp, sizeof(sp));
-  memcpy(violin.osc.sender.systime_addr, ssyst, sizeof(ssyst));
-  memcpy(violin.osc.sender.position_addr, spos, sizeof(spos));
-
-  memcpy(violin.osc.receiver.port, rp, sizeof(rp));
-  memcpy(violin.osc.receiver.cal_t_addr, rct, sizeof(rct));
-  memcpy(violin.osc.receiver.cal_r_addr, rcr, sizeof(rcr));
-  memcpy(violin.osc.receiver.meas_addr, rm, sizeof(rm));
-  memcpy(violin.osc.receiver.cmd_addr, rcmd, sizeof(rcmd));
-}
+{}
 
 void startup(void)
 {
-  addr = lo_address_new(violin.osc.sender.host, violin.osc.sender.port);
-  printf("Sending OSC to host %s on port %s\n", violin.osc.sender.host, violin.osc.sender.port);
+  addr = lo_address_new(v.osc.s.host, v.osc.s.port);
+  printf("Sending OSC to host %s on port %s\n", v.osc.s.host, v.osc.s.port);
 
-  st = lo_server_thread_new(violin.osc.receiver.port, lo_error);
-  lo_server_thread_add_method(st, violin.osc.receiver.cal_t_addr, "s", calib_touch_handler, NULL);
-  lo_server_thread_add_method(st, violin.osc.receiver.cal_r_addr, "s", calib_range_handler, NULL);
-  lo_server_thread_add_method(st, violin.osc.receiver.meas_addr, "i", measure_handler, NULL);
-  lo_server_thread_add_method(st, violin.osc.receiver.cmd_addr, NULL, command_handler, NULL);
+  st = lo_server_thread_new(v.osc.r.port, lo_error);
+  lo_server_thread_add_method(st, v.osc.r.r_meas_addr,
+                              "i", r_meas_handler, NULL);
+  lo_server_thread_add_method(st, v.osc.r.r_calib_t_addr,
+                              "s", r_calib_t_handler, NULL);
+  lo_server_thread_add_method(st, v.osc.r.r_calib_r_addr,
+                              "s", r_calib_r_handler, NULL);
+  lo_server_thread_add_method(st, v.osc.r.r_view_addr,
+                              "s", r_view_handler, NULL);
+  lo_server_thread_add_method(st, v.osc.r.r_hid_addr,
+                              "s", r_hid_handler, NULL);
+  lo_server_thread_add_method(st, v.osc.r.r_app_addr,
+                              "s", r_app_handler, NULL);
   printf("OSC server thread & method added on port 19002\n");
 
   lo_server_thread_start(st);

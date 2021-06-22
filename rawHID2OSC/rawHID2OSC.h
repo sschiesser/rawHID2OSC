@@ -42,18 +42,18 @@ struct touch_cal_s
   uint16_t min;
   uint16_t max;
   uint16_t avg;
-  bool status;
+  bool st;
 };
 struct range_cal_s
 {
   uint16_t min;
   uint16_t max;
-  bool status;
+  bool st;
 };
 struct string_cal_s
 {
-  struct touch_cal_s cal_touch;
-  struct range_cal_s cal_range;
+  struct touch_cal_s calib_t;
+  struct range_cal_s calib_r;
 };
 struct calib_state_s
 {
@@ -65,36 +65,41 @@ struct osc_sender_s
 {
   char host[32];
   char port[8];
-  char systime_addr[64];
-  char position_addr[64];
-  char state_addr[64];
+  char n_meas_addr[64];
+  char n_calib_t_addr[64];
+  char n_calib_r_addr[64];
+  char n_view_addr[64];
+  char n_hid_addr[64];
+  char n_app_addr[64];
 };
 struct osc_receiver_s
 {
   char port[8];
-  char cal_t_addr[64];
-  char cal_r_addr[64];
-  char meas_addr[64];
-  char cmd_addr[64];
+  char r_meas_addr[64];
+  char r_calib_t_addr[64];
+  char r_calib_r_addr[64];
+  char r_view_addr[64];
+  char r_hid_addr[64];
+  char r_app_addr[64];
 };
 struct osc_s
 {
-  struct osc_sender_s sender;
-  struct osc_receiver_s receiver;
+  struct osc_sender_s s;
+  struct osc_receiver_s r;
 };
 
 struct hid_s
 {
-  int8_t dev_id;
+  int8_t id;
   uint16_t vid, pid, page, usage;
   bool open;
 };
 
 struct violin_s
 {
-  struct hid_s device;
-  machine_state cur_state;
-  struct calib_state_s cal_state;
+  struct hid_s dev;
+  machine_state cur_st;
+  struct calib_state_s cal_st;
   struct osc_s osc;
 };
 
@@ -105,14 +110,18 @@ static void display_help(void);
 static void display_calib_vals(void);
 static char get_keystroke(void);
 void lo_error(int num, const char* msg, const char* path);
-int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
-                        int argc, void* data, void* user_data);
-int calib_range_handler(const char* path, const char* types, lo_arg** argv,
-                        int argc, void* data, void* user_data);
-int measure_handler(const char* path, const char* types, lo_arg** argv,
-                    int argc, void* data, void* user_data);
-int command_handler(const char* path, const char* types, lo_arg** argv,
-                    int argc, void* data, void* user_data);
+int r_meas_handler(const char* path, const char* types, lo_arg** argv,
+                   int argc, void* data, void* user_data);
+int r_calib_t_handler(const char* path, const char* types, lo_arg** argv,
+                      int argc, void* data, void* user_data);
+int r_calib_r_handler(const char* path, const char* types, lo_arg** argv,
+                      int argc, void* data, void* user_data);
+int r_view_handler(const char* path, const char* types, lo_arg** argv,
+                   int argc, void* data, void* user_data);
+int r_hid_handler(const char* path, const char* types, lo_arg** argv,
+                  int argc, void* data, void* user_data);
+int r_app_handler(const char* path, const char* types, lo_arg** argv,
+                  int argc, void* data, void* user_data);
 void init(void);
 void startup(void);
 #endif /* _RAWHID2OSC_H */
