@@ -89,15 +89,15 @@ static void parse_keystroke(char c1, bool dev_open)
   {
     bool rts = true;
 
-    req[0] = REQ_COMMAND;
+    req[0] = R_CMD;
     req[2] = (uint8_t)c1;
     switch(c1)
     {
       case 'c':
       {
         req[1] = 2;
-        req[2] = REQ_EXIT;
-        req[3] = REQ_END;
+        req[2] = R_EXIT;
+        req[3] = R_END;
         rawhid_send(violin.device.dev_id, req, 64, 100);
 
         rawhid_close(violin.device.dev_id);
@@ -109,21 +109,21 @@ static void parse_keystroke(char c1, bool dev_open)
         break;
       }
 
-      case REQ_HELP:
+      case R_HELP:
       {
         display_help();
         break;
       }
 
-      case REQ_MEASURE:
+      case R_MEAS:
       {
         req[1] = 2;
-        req[3] = REQ_END;
+        req[3] = R_END;
         printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
         break;
       }
 
-      case REQ_CALIB_RANGE:
+      case R_CALIB_R:
       {
         printf("Calib RANGES requested, please choose a string: ");
         req[1] = 3;
@@ -134,30 +134,30 @@ static void parse_keystroke(char c1, bool dev_open)
         {
           case 'e':
             printf("got a 'e'\n");
-            req[3] = REQ_STRING_E;
+            req[3] = R_STR_E;
             break;
 
           case 'g':
             printf("got a 'g'\n");
-            req[3] = REQ_STRING_G;
+            req[3] = R_STR_G;
             break;
 
           case 'x':
             printf("got a 'x'... exiting\n");
-            req[3] = REQ_STRING_NONE;
+            req[3] = R_STR_A;
             break;
 
           default:
             printf("got something else\n");
-            req[3] = REQ_STRING_NONE;
+            req[3] = R_STR_A;
             break;
         }
-        req[4] = REQ_END;
+        req[4] = R_END;
         printf("Calib RANGES requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
         break;
       }
 
-      case REQ_CALIB_TOUCH:
+      case R_CALIB_T:
       {
         printf("Calib TOUCH requested, please choose a string: ");
         req[1] = 3;
@@ -168,40 +168,40 @@ static void parse_keystroke(char c1, bool dev_open)
         {
           case 'e':
             printf("got a 'e'\n");
-            req[3] = REQ_STRING_E;
+            req[3] = R_STR_E;
             break;
 
           case 'g':
             printf("got a 'g'\n");
-            req[3] = REQ_STRING_G;
+            req[3] = R_STR_G;
             break;
 
           case 'x':
             printf("got a 'x'... exiting\n");
-            req[3] = REQ_STRING_NONE;
+            req[3] = R_STR_A;
             break;
 
           default:
             printf("got something else\n");
-            req[3] = REQ_STRING_NONE;
+            req[3] = R_STR_A;
             break;
         }
 
-        req[4] = REQ_END;
+        req[4] = R_END;
         printf("Calib TOUCH requested, sending: 0x%02x %d %d 0x%02x 0x%02x\n", req[0], req[1], req[2], req[3], req[4]);
         break;
       }
 
-      case REQ_VIEW:
+      case R_VIEW:
       {
         display_calib_vals();
         break;
       }
 
-      case REQ_EXIT:
+      case R_EXIT:
       {
         req[1] = 2;
-        req[3] = REQ_END;
+        req[3] = R_END;
         printf("EXIT requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
         break;
       }
@@ -234,7 +234,7 @@ static void parse_notification(uint8_t* p)
     printf("0x%02x ", p[i]);
   }
   printf("\n");
-  if(p[0] == NOTIF_MEASUREMENT)
+  if(p[0] == N_MEAS)
   {
     cur_time = get_ms();
     uint32_t delta_host = cur_time - prev_time;
@@ -247,9 +247,9 @@ static void parse_notification(uint8_t* p)
     lo_send(addr, "/violin/pos/g", "i", gVal);
     lo_send(addr, "/violin/pos/e", "i", eVal);
   }
-  if(p[0] == NOTIF_CALIB_TOUCH_DONE)
+  if(p[0] == N_CT_DONE)
   {
-    char str = (p[2] == NOTIF_STRING_E) ? 'E' : 'G';
+    char str = (p[2] == N_STR_E) ? 'E' : 'G';
     uint16_t min = (p[3] << 8) | p[4];
     uint16_t max = (p[5] << 8) | p[6];
     uint16_t avg = (p[7] << 8) | p[8];
@@ -272,9 +272,9 @@ static void parse_notification(uint8_t* p)
       violin.cal_state.g_str.cal_touch.status = cal;
     }
   }
-  if(p[0] == NOTIF_CALIB_RANGES_DONE)
+  if(p[0] == N_CR_DONE)
   {
-    char str = (p[2] == NOTIF_STRING_E) ? 'E' : 'G';
+    char str = (p[2] == N_STR_E) ? 'E' : 'G';
     uint16_t min = (p[3] << 8) | p[4];
     uint16_t max = (p[5] << 8) | p[6];
     uint8_t cal = p[7];
@@ -371,12 +371,12 @@ int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
   char cal_string = argv[0]->c;
   if(calibrating)
   {
-    if(cal_string == REQ_EXIT)
+    if(cal_string == R_EXIT)
     {
-      req[0] = REQ_COMMAND;
+      req[0] = R_CMD;
       req[1] = 2;
-      req[2] = REQ_EXIT;
-      req[3] = REQ_END;
+      req[2] = R_EXIT;
+      req[3] = R_END;
       calibrating = false;
     }
     else
@@ -384,14 +384,14 @@ int calib_touch_handler(const char* path, const char* types, lo_arg** argv,
   }
   else
   {
-    req[0] = REQ_COMMAND;
+    req[0] = R_CMD;
     req[1] = 3;
-    req[2] = REQ_CALIB_TOUCH;
+    req[2] = R_CALIB_T;
     req[3] = cal_string;
-    req[4] = REQ_END;
+    req[4] = R_END;
     calibrating = true;
 
-    if((cal_string != REQ_STRING_E) && (cal_string != REQ_STRING_G))
+    if((cal_string != R_STR_E) && (cal_string != R_STR_G))
     {
       rts = false;
       calibrating = false;
@@ -426,13 +426,13 @@ int calib_range_handler(const char* path, const char* types, lo_arg** argv,
   printf("%s <- c:%c\n", path, argv[0]->c);
 
   char cal_string = argv[0]->c;
-  req[0] = REQ_COMMAND;
+  req[0] = R_CMD;
   req[1] = 3;
-  req[2] = REQ_CALIB_RANGE;
+  req[2] = R_CALIB_R;
   req[3] = cal_string;
-  req[4] = REQ_END;
+  req[4] = R_END;
 
-  if((cal_string != REQ_STRING_E) && (cal_string != REQ_STRING_G))
+  if((cal_string != R_STR_E) && (cal_string != R_STR_G))
     rts = false;
 
   if(rts)
@@ -463,19 +463,19 @@ int measure_handler(const char* path, const char* types, lo_arg** argv,
   printf("%s <- i:%d\n", path, argv[0]->i);
   bool meas_cmd = (bool)argv[0]->i;
 
-  req[0] = REQ_COMMAND;
+  req[0] = R_CMD;
   req[1] = 2;
-  req[3] = REQ_END;
+  req[3] = R_END;
   if(!measuring && meas_cmd)
   {
     printf("Starting measurement!\n");
-    req[2] = REQ_MEASURE;
+    req[2] = R_MEAS;
     measuring = true;
   }
   else if(measuring && !meas_cmd)
   {
     printf("Stopping measurement!\n");
-    req[2] = REQ_EXIT;
+    req[2] = R_EXIT;
     measuring = false;
   }
   else

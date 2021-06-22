@@ -40,13 +40,90 @@
 		"assistshowspatchername" : 0,
 		"boxes" : [ 			{
 				"box" : 				{
+					"id" : "obj-38",
+					"maxclass" : "message",
+					"numinlets" : 2,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 429.5, 950.0, 363.0, 22.0 ],
+					"text" : "C:/_MYdocs/07-code/1.04-VisualStudio/rawHID2OSC/interface.bat"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-36",
+					"maxclass" : "button",
+					"numinlets" : 1,
+					"numoutlets" : 1,
+					"outlettype" : [ "bang" ],
+					"parameter_enable" : 0,
+					"patching_rect" : [ 972.0, 786.0, 24.0, 24.0 ]
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-21",
+					"maxclass" : "newobj",
+					"numinlets" : 3,
+					"numoutlets" : 3,
+					"outlettype" : [ "", "", "" ],
+					"patching_rect" : [ 910.0, 754.0, 143.0, 22.0 ],
+					"text" : "route windows macintosh"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-17",
+					"maxclass" : "newobj",
+					"numinlets" : 0,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 910.0, 728.0, 50.0, 22.0 ],
+					"text" : "r mysys"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-16",
+					"linecount" : 2,
+					"maxclass" : "message",
+					"numinlets" : 2,
+					"numoutlets" : 1,
+					"outlettype" : [ "" ],
+					"patching_rect" : [ 910.0, 662.0, 127.0, 36.0 ],
+					"text" : ";\r\nmax getsystem mysys"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-4",
+					"maxclass" : "newobj",
+					"numinlets" : 1,
+					"numoutlets" : 2,
+					"outlettype" : [ "", "bang" ],
+					"patching_rect" : [ 429.5, 979.0, 33.0, 22.0 ],
+					"saved_object_attributes" : 					{
+						"shell" : "(default)"
+					}
+,
+					"text" : "shell"
+				}
+
+			}
+, 			{
+				"box" : 				{
 					"id" : "obj-34",
 					"maxclass" : "message",
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 406.0, 87.0, 96.0, 22.0 ],
-					"text" : "14. 15"
+					"patching_rect" : [ 245.0, 87.0, 257.0, 22.0 ],
+					"text" : "17429 29608 23518 1 126 1016 1"
 				}
 
 			}
@@ -81,7 +158,7 @@
 					"numinlets" : 3,
 					"numoutlets" : 3,
 					"outlettype" : [ "bang", "bang", "" ],
-					"patching_rect" : [ 617.0, 874.0, 44.0, 22.0 ],
+					"patching_rect" : [ 417.0, 914.0, 44.0, 22.0 ],
 					"text" : "sel 0 1"
 				}
 
@@ -94,20 +171,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "int" ],
 					"parameter_enable" : 0,
-					"patching_rect" : [ 617.0, 754.0, 110.0, 110.0 ]
-				}
-
-			}
-, 			{
-				"box" : 				{
-					"id" : "obj-66",
-					"linecount" : 2,
-					"maxclass" : "message",
-					"numinlets" : 2,
-					"numoutlets" : 1,
-					"outlettype" : [ "" ],
-					"patching_rect" : [ 629.5, 908.0, 470.0, 36.0 ],
-					"text" : ";\r\nmax launchbrowser C:/_MYdocs/07-code/1.04-VisualStudio/rawHID2OSC/interface.bat"
+					"patching_rect" : [ 417.0, 794.0, 110.0, 110.0 ]
 				}
 
 			}
@@ -118,7 +182,7 @@
 					"numinlets" : 1,
 					"numoutlets" : 1,
 					"outlettype" : [ "bang" ],
-					"patching_rect" : [ 617.0, 728.0, 58.0, 22.0 ],
+					"patching_rect" : [ 910.0, 628.0, 58.0, 22.0 ],
 					"text" : "loadbang"
 				}
 
@@ -267,7 +331,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 258.5, 475.0, 29.5, 22.0 ],
-					"text" : "g"
+					"text" : "G"
 				}
 
 			}
@@ -279,7 +343,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 179.0, 475.0, 29.5, 22.0 ],
-					"text" : "e"
+					"text" : "E"
 				}
 
 			}
@@ -363,7 +427,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 179.0, 582.0, 149.0, 22.0 ],
-					"text" : "/violin/calib/range g"
+					"text" : "/violin/calib/range e"
 				}
 
 			}
@@ -399,7 +463,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 129.5, 475.0, 29.5, 22.0 ],
-					"text" : "g"
+					"text" : "G"
 				}
 
 			}
@@ -411,7 +475,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 45.0, 475.0, 29.5, 22.0 ],
-					"text" : "e"
+					"text" : "E"
 				}
 
 			}
@@ -525,7 +589,7 @@
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
 					"patching_rect" : [ 20.0, 98.0, 96.0, 22.0 ],
-					"text" : "14. 15"
+					"text" : "15. 15"
 				}
 
 			}
@@ -565,6 +629,13 @@
 			}
 , 			{
 				"patchline" : 				{
+					"destination" : [ "obj-21", 0 ],
+					"source" : [ "obj-17", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
 					"destination" : [ "obj-2", 0 ],
 					"order" : 1,
 					"source" : [ "obj-19", 0 ]
@@ -576,6 +647,20 @@
 					"destination" : [ "obj-7", 1 ],
 					"order" : 0,
 					"source" : [ "obj-19", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-36", 0 ],
+					"source" : [ "obj-21", 1 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-6", 0 ],
+					"source" : [ "obj-21", 0 ]
 				}
 
 			}
@@ -655,6 +740,13 @@
 				"patchline" : 				{
 					"destination" : [ "obj-19", 0 ],
 					"source" : [ "obj-33", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-4", 0 ],
+					"source" : [ "obj-38", 0 ]
 				}
 
 			}
@@ -808,8 +900,15 @@
 			}
 , 			{
 				"patchline" : 				{
-					"destination" : [ "obj-6", 0 ],
+					"destination" : [ "obj-16", 0 ],
 					"source" : [ "obj-63", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-38", 0 ],
+					"source" : [ "obj-8", 1 ]
 				}
 
 			}
@@ -820,15 +919,12 @@
 				}
 
 			}
-, 			{
-				"patchline" : 				{
-					"destination" : [ "obj-66", 0 ],
-					"source" : [ "obj-8", 1 ]
-				}
-
+ ],
+		"dependency_cache" : [ 			{
+				"name" : "shell.mxe64",
+				"type" : "mx64"
 			}
  ],
-		"dependency_cache" : [  ],
 		"autosave" : 0
 	}
 

@@ -19,50 +19,10 @@
 
 #include "hid.h"
 #include "lo/lo.h"
+#include "messages.h"
 
 
-typedef enum hid_notifications_t
-{
-  // notification type headers
-  NOTIF_MEASUREMENT = 0x00,
-  NOTIF_ACKNOWLEDGEMENT = 0x10,
-  // notification values
-  NOTIF_CALIB_RANGES = 0x20,
-  NOTIF_CALIB_RANGES_DONE = 0x21,
-  NOTIF_CALIB_TOUCH = 0x30,
-  NOTIF_CALIB_TOUCH_DONE = 0x31,
-  NOTIF_MEASURE_REQ = 0x40,
-  NOTIF_VIEW_VALUES = 0x50,
-  NOTIF_EXIT_REQ = 0x60,
-  NOTIF_STRING_E = 0xC0,
-  NOTIF_STRING_G = 0xC1,
-  NOTIF_STRING_D = 0xC2,
-  NOTIF_STRING_A = 0xC3,
-  NOTIF_ERROR_BADCMD = 0xE0,
-  NOTIF_ERROR_TIMEOUT = 0xE1,
-  // notification end delimiter
-  NOTIF_END = 0xFF
-} hid_notifications;
 
-typedef enum hid_requests_t
-{
-  // request type headers (val < 0x20)
-  REQ_COMMAND = 0x10,
-  // request values (0x20 <= val <= 0x7E)
-  REQ_STRING_A = 'a',
-  REQ_STRING_D = 'd',
-  REQ_STRING_E = 'e',
-  REQ_STRING_G = 'g',
-  REQ_STRING_NONE = 0xe0,
-  REQ_HELP = 'h',
-  REQ_MEASURE = 'm',
-  REQ_CALIB_RANGE = 'r',
-  REQ_CALIB_TOUCH = 't',
-  REQ_VIEW = 'v',
-  REQ_EXIT = 'x',
-  // request end delimiter
-  REQ_END = 0xFF
-} hid_requests;
 
 typedef enum machine_state_t
 {
