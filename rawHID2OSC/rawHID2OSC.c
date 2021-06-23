@@ -35,7 +35,8 @@ struct violin_s v = {
   .cal_st.g_str.calib_t.min = UINT16_MAX,
   .cal_st.g_str.calib_t.max = 0,
   .cal_st.g_str.calib_t.avg = UINT16_MAX,
-  .cal_st.g_str.calib_t.st = false
+  .cal_st.g_str.calib_t.st = false,
+  .cur_st = STATE_IDLE
 };
 
 const bool debug = true;
@@ -122,6 +123,7 @@ static void parse_hid_notif(uint8_t* p)
       uint32_t delta_teensy = ((uint32_t)((p[2] << 8) | (p[3])) / 1.0);
       uint16_t g = (uint16_t)((uint16_t)(p[4] << 8) | (p[5]));
       uint16_t e = (uint16_t)((uint16_t)(p[6] << 8) | (p[7]));
+      v.cur_st = (machine_state)p[8];
       //printf("forwarding to %s on %s: %d %d %d %d\n", v.osc.s.host, v.osc.s.port, delta_teensy, delta_host, e, g);
       lo_send(addr, v.osc.s.n_meas_addr, "iiii",
               delta_teensy, delta_host, e, g);
@@ -132,65 +134,123 @@ static void parse_hid_notif(uint8_t* p)
       parse_hid_n_info(&p[2], p[1]);
       break;
 
-    case N_ACK:
-      parse_hid_n_ack(&p[2], p[1]);
-      break;
-
     default:
       break;
   }
 }
 
-static int parse_hid_n_info(uint8_t* p, uint8_t len)
+static int parse_hid_n_info(uint8_t* i, uint8_t len)
 {
-  uint8_t str;
-  uint16_t r_min, r_max, t_min, t_max, t_avg;
-  bool t_cal, r_cal;
+  static uint8_t str;
+  static uint16_t r_min, r_max, t_min, t_max, t_avg;
+  static bool t_cal, r_cal;
 
-  switch(p[0])
+  switch(i[0])
   {
     case N_CALIB_R:
+    {
       if(len != 8) return -1;
-      str = p[1];
-      r_min = (p[2] << 8) | p[3];
-      r_max = (p[4] << 8) | p[5];
+      str = i[1];
+      r_min = (i[2] << 8) | i[3];
+      r_max = (i[4] << 8) | i[5];
+      v.cur_st = (machine_state)i[6];
       if(debug) printf("Sending %c 0x%02x 0x%02x\n",
                        (char)str, r_min, r_max);
       lo_send(addr, v.osc.s.n_calib_r_addr, "iii", str, r_min, r_max);
       break;
+    }
 
     case N_CALIB_T:
+    {
       if(len != 10) return -1;
-      str = p[1];
-      t_min = (p[2] << 8) | p[3];
-      t_max = (p[4] << 8) | p[5];
-      t_avg = (p[6] << 8) | p[7];
+      str = i[1];
+      t_min = (i[2] << 8) | i[3];
+      t_max = (i[4] << 8) | i[5];
+      t_avg = (i[6] << 8) | i[7];
+      v.cur_st = (machine_state)i[8];
       if(debug) printf("Sending %c 0x%02x 0x%02x 0x%02x\n",
                        (char)str, t_min, t_max, t_avg);
       lo_send(addr, v.osc.s.n_calib_t_addr, "iiii", str, t_min, t_max, t_avg);
       break;
+    }
 
     case N_VIEW:
+    {
       if(len != 16) return -1;
-      str = (char)p[1];
-      t_min = (p[2] << 8) | p[3];
-      t_max = (p[4] << 8) | p[5];
-      t_avg = (p[6] << 8) | p[7];
-      t_cal = (bool)p[8];
-      r_min = (p[9] << 8) | p[10];
-      r_max = (p[11] << 8) | p[12];
-      r_cal = (bool)p[13];
+      str = (char)i[1];
+      t_min = (i[2] << 8) | i[3];
+      t_max = (i[4] << 8) | i[5];
+      t_avg = (i[6] << 8) | i[7];
+      t_cal = (bool)i[8];
+      r_min = (i[9] << 8) | i[10];
+      r_max = (i[11] << 8) | i[12];
+      r_cal = (bool)i[13];
+      v.cur_st = (machine_state)i[14];
       break;
+    }
 
     case N_ERR:
       if(len != 3) return -1;
       break;
 
-    case N_TIMEOUT:
+    case N_EXIT:
+    {
       if(len != 3) return -1;
+
+      if((v.cur_st = i[1]) == STATE_CALIB_TOUCH)
+      {
+        if(str == N_STR_E)
+        {
+          v.cal_st.e_str.calib_t.min = t_min;
+          v.cal_st.e_str.calib_t.max = t_max;
+          v.cal_st.e_str.calib_t.avg = t_avg;
+          v.cal_st.e_str.calib_r.st = t_cal;
+          if(debug) printf("Saved into v object: minT %d, maxT %d, avgT %d, calT %d\n",
+                           v.cal_st.e_str.calib_t.min,
+                           v.cal_st.e_str.calib_t.max,
+                           v.cal_st.e_str.calib_t.avg,
+                           v.cal_st.e_str.calib_t.st);
+        }
+        if(str == N_STR_G)
+        {
+          v.cal_st.g_str.calib_t.min = t_min;
+          v.cal_st.g_str.calib_t.max = t_max;
+          v.cal_st.g_str.calib_t.avg = t_avg;
+          v.cal_st.g_str.calib_t.st = t_cal;
+        }
+      }
+      break;
+    }
+
+    case N_TIMEOUT:
+    {
+      if(len != 3) return -1;
+
+      if(v.cur_st == STATE_CALIB_RANGES)
+      {
+        if(str == N_STR_E)
+        {
+          v.cal_st.e_str.calib_r.min = r_min;
+          v.cal_st.e_str.calib_r.max = r_max;
+          v.cal_st.e_str.calib_r.st = r_cal;
+          if(debug) printf("Saved into v object: minR %d, maxR %d, calR %d\n",
+                           v.cal_st.e_str.calib_r.min,
+                           v.cal_st.e_str.calib_r.max,
+                           v.cal_st.e_str.calib_r.st);
+        }
+        if(str == N_STR_G)
+        {
+          v.cal_st.g_str.calib_r.min = r_min;
+          v.cal_st.g_str.calib_r.max = r_max;
+          v.cal_st.g_str.calib_r.st = r_cal;
+        }
+      }
+      break;
+    }
+
+    default:
       break;
   }
-
   //if(p[0] == N_CT_DONE)
   //{
   //  switch(str)
@@ -250,10 +310,6 @@ static int parse_hid_n_info(uint8_t* p, uint8_t len)
   //}
 }
 
-static int parse_hid_n_ack(uint8_t* p, uint8_t len)
-{
-
-}
 
 /******************************************************************************
 * OSC ZONE
