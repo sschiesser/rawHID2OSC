@@ -129,81 +129,130 @@ static void parse_hid_notif(uint8_t* p)
     }
 
     case N_INFO:
+      parse_hid_n_info(&p[2], p[1]);
       break;
 
     case N_ACK:
+      parse_hid_n_ack(&p[2], p[1]);
       break;
 
     default:
       break;
   }
-  if(p[0] == N_MEAS)
+}
 
+static int parse_hid_n_info(uint8_t* p, uint8_t len)
+{
+  uint8_t str;
+  uint16_t r_min, r_max, t_min, t_max, t_avg;
+  bool t_cal, r_cal;
 
-
-    if(p[0] == N_CT_DONE)
-    {
-
-      char str = (char)p[2];
-      uint16_t min = (p[3] << 8) | p[4];
-      uint16_t max = (p[5] << 8) | p[6];
-      uint16_t avg = (p[7] << 8) | p[8];
-      uint8_t cal = p[9];
-      switch(str)
-      {
-        case 'E':
-          v.cal_st.e_str.calib_t.min = min;
-          v.cal_st.e_str.calib_t.max = max;
-          v.cal_st.e_str.calib_t.avg = avg;
-          v.cal_st.e_str.calib_t.st = cal;
-          break;
-
-        case 'G':
-          v.cal_st.g_str.calib_t.min = min;
-          v.cal_st.g_str.calib_t.max = max;
-          v.cal_st.g_str.calib_t.avg = avg;
-          v.cal_st.g_str.calib_t.st = cal;
-          break;
-
-        case 'A':
-        case 'D':
-        default:
-          break;
-      }
-      if(debug) printf("Touch calib done on string %c, "
-                       "results (min/max/avg): %d/%d/%d, quality: %d\n",
-                       str, min, max, avg, cal);
-    }
-
-  if(p[0] == N_CR_DONE)
+  switch(p[0])
   {
-    char str = (char)p[2];
-    uint16_t min = (p[3] << 8) | p[4];
-    uint16_t max = (p[5] << 8) | p[6];
-    uint8_t cal = p[7];
-    switch(str)
-    {
-      case 'E':
-        v.cal_st.e_str.calib_r.min = min;
-        v.cal_st.e_str.calib_r.max = max;
-        v.cal_st.e_str.calib_r.st = cal;
-        break;
+    case N_CALIB_R:
+      if(len != 8) return -1;
+      str = p[1];
+      r_min = (p[2] << 8) | p[3];
+      r_max = (p[4] << 8) | p[5];
+      if(debug) printf("Sending %c 0x%02x 0x%02x\n",
+                       (char)str, r_min, r_max);
+      lo_send(addr, v.osc.s.n_calib_r_addr, "iii", str, r_min, r_max);
+      break;
 
-      case 'G':
-        v.cal_st.g_str.calib_r.min = min;
-        v.cal_st.g_str.calib_r.max = max;
-        v.cal_st.g_str.calib_r.st = cal;
-        break;
+    case N_CALIB_T:
+      if(len != 10) return -1;
+      str = p[1];
+      t_min = (p[2] << 8) | p[3];
+      t_max = (p[4] << 8) | p[5];
+      t_avg = (p[6] << 8) | p[7];
+      if(debug) printf("Sending %c 0x%02x 0x%02x 0x%02x\n",
+                       (char)str, t_min, t_max, t_avg);
+      lo_send(addr, v.osc.s.n_calib_t_addr, "iiii", str, t_min, t_max, t_avg);
+      break;
 
-      case 'A':
-      case 'D':
-      default:
-        break;
-    }
-    if(debug) printf("Range calib done on string %c,"
-                     " results (min/max): %d/%d, quality: %d\n",
-                     str, min, max, cal);
+    case N_VIEW:
+      if(len != 16) return -1;
+      str = (char)p[1];
+      t_min = (p[2] << 8) | p[3];
+      t_max = (p[4] << 8) | p[5];
+      t_avg = (p[6] << 8) | p[7];
+      t_cal = (bool)p[8];
+      r_min = (p[9] << 8) | p[10];
+      r_max = (p[11] << 8) | p[12];
+      r_cal = (bool)p[13];
+      break;
+
+    case N_ERR:
+      if(len != 3) return -1;
+      break;
+
+    case N_TIMEOUT:
+      if(len != 3) return -1;
+      break;
   }
+
+  //if(p[0] == N_CT_DONE)
+  //{
+  //  switch(str)
+  //  {
+  //    case 'E':
+  //      v.cal_st.e_str.calib_t.min = min;
+  //      v.cal_st.e_str.calib_t.max = max;
+  //      v.cal_st.e_str.calib_t.avg = avg;
+  //      v.cal_st.e_str.calib_t.st = cal;
+  //      break;
+
+  //    case 'G':
+  //      v.cal_st.g_str.calib_t.min = min;
+  //      v.cal_st.g_str.calib_t.max = max;
+  //      v.cal_st.g_str.calib_t.avg = avg;
+  //      v.cal_st.g_str.calib_t.st = cal;
+  //      break;
+
+  //    case 'A':
+  //    case 'D':
+  //    default:
+  //      break;
+  //  }
+  //  if(debug) printf("Touch calib done on string %c, "
+  //                   "results (min/max/avg): %d/%d/%d, quality: %d\n",
+  //                   str, min, max, avg, cal);
+  //}
+
+  //if(p[0] == N_CR_DONE)
+  //{
+  //  char str = (char)p[2];
+  //  uint16_t min = (p[3] << 8) | p[4];
+  //  uint16_t max = (p[5] << 8) | p[6];
+  //  uint8_t cal = p[7];
+  //  switch(str)
+  //  {
+  //    case 'E':
+  //      v.cal_st.e_str.calib_r.min = min;
+  //      v.cal_st.e_str.calib_r.max = max;
+  //      v.cal_st.e_str.calib_r.st = cal;
+  //      break;
+
+  //    case 'G':
+  //      v.cal_st.g_str.calib_r.min = min;
+  //      v.cal_st.g_str.calib_r.max = max;
+  //      v.cal_st.g_str.calib_r.st = cal;
+  //      break;
+
+  //    case 'A':
+  //    case 'D':
+  //    default:
+  //      break;
+  //  }
+  //  if(debug) printf("Range calib done on string %c,"
+  //                   " results (min/max): %d/%d, quality: %d\n",
+  //                   str, min, max, cal);
+  //}
+}
+
+static int parse_hid_n_ack(uint8_t* p, uint8_t len)
+{
+
 }
 
 /******************************************************************************
