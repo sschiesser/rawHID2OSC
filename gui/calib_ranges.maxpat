@@ -4,7 +4,7 @@
 		"appversion" : 		{
 			"major" : 8,
 			"minor" : 1,
-			"revision" : 8,
+			"revision" : 11,
 			"architecture" : "x64",
 			"modernui" : 1
 		}
@@ -267,9 +267,9 @@
 					"maxclass" : "newobj",
 					"numinlets" : 2,
 					"numoutlets" : 1,
-					"outlettype" : [ "int" ],
-					"patching_rect" : [ 2.352936685085297, -103.529420256614685, 29.5, 22.0 ],
-					"text" : "- 20"
+					"outlettype" : [ "float" ],
+					"patching_rect" : [ 2.352936685085297, -103.529420256614685, 40.0, 22.0 ],
+					"text" : "* 0.95"
 				}
 
 			}
@@ -280,9 +280,9 @@
 					"maxclass" : "newobj",
 					"numinlets" : 2,
 					"numoutlets" : 1,
-					"outlettype" : [ "int" ],
-					"patching_rect" : [ 55.852936685085297, -103.529420256614685, 32.0, 22.0 ],
-					"text" : "+ 20"
+					"outlettype" : [ "float" ],
+					"patching_rect" : [ 55.852936685085297, -103.529420256614685, 40.0, 22.0 ],
+					"text" : "* 1.05"
 				}
 
 			}

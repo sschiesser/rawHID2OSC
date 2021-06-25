@@ -652,7 +652,8 @@ static void parse_keystroke(char c1, bool dev_open)
       {
         req[1] = 2;
         req[3] = R_END;
-        printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n", req[0], req[1], req[2], req[3]);
+        printf("MEASURE requested, sending: 0x%02x %d %d 0x%02x\n",
+               req[0], req[1], req[2], req[3]);
         break;
       }
 
